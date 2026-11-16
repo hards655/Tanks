@@ -1,3 +1,4 @@
+import {PAINTS} from './paints.js';
 // Deterministic input, weapon and economy rules shared with the test suite.
 export function joystickVector(x,y,deadzone=.12){const r=Math.hypot(x,y);if(r<=deadzone)return{x:0,y:0};const m=(Math.min(r,1)-deadzone)/(1-deadzone);return{x:x/r*m,y:y/r*m}}
 export function damp(current,target,rate,dt){return current+(target-current)*(1-Math.exp(-rate*dt))}
@@ -8,10 +9,7 @@ export const PRODUCTS=[
  {id:'repairKit',name:'Дополнительный ремкомплект',category:'supplies',price:180,description:'Ещё один ремонт в следующем бою. Расходуется при выходе в бой.'},
  {id:'ammoCrate',name:'Расширенный боекомплект',category:'supplies',price:160,description:'+20 AP, +8 APCR, +6 HE и +120 патронов КП. На один бой.'},
  {id:'overdrive',name:'Усиленное топливо',category:'supplies',price:140,description:'+12% скорости в следующем бою.'},
- {id:'forest',name:'Лесной камуфляж',category:'paint',price:450,description:'Трёхцветная окраска. Только внешний вид.'},
- {id:'desert',name:'Пустынный камуфляж',category:'paint',price:450,description:'Песочная окраска. Только внешний вид.'},
- {id:'winter',name:'Зимний камуфляж',category:'paint',price:450,description:'Светлая полевая окраска. Только внешний вид.'},
- {id:'admin_ua',name:'Админский: Сине-жёлтый Трезубец',category:'paint',price:0,description:'Сине-жёлтая окраска с гербом-трезубцем. Бесплатный декоративный скин.'}
+ ...Object.entries(PAINTS).filter(([id])=>id!=='factory').map(([id,p])=>({id,name:p.name,category:'paint',price:p.price,description:'Оригинальный камуфляж · '+({digital:'цифровой',splinter:'осколочный',stripe:'полосатый',blot:'пятнистый',flag:'двухцветный',crack:'трещины'}[p.pattern]||'однотонный')+'. Только внешний вид.'}))
 ];
 export function migrateProfile(s){s.inventory??={};s.equipment??=[];s.paints??=['factory'];s.loadout??={equipment:[],supplies:[],paint:'factory'};return s}
 export function purchase(s,id){const p=PRODUCTS.find(p=>p.id===id);if(!p)return 'Товар не найден';if(p.category==='equipment'&&s.equipment.includes(id)||p.category==='paint'&&s.paints.includes(id))return 'Уже приобретено';if(s.credits<p.price)return 'Недостаточно кредитов';if(p.category==='supplies'&&(s.inventory[id]||0)>=10)return 'На складе уже 10';s.credits-=p.price;if(p.category==='equipment')s.equipment.push(id);else if(p.category==='paint')s.paints.push(id);else s.inventory[id]=(s.inventory[id]||0)+1;return null}

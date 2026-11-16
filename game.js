@@ -155,6 +155,27 @@ function terrainPBR(idx){
  return material;
 }
 
+
+// Original fractured rock meshes: angular strata and chipped silhouettes.
+// Shared geometry is reused across hundreds of instances; no external assets.
+function makeRockGeometry(seedValue=1,detail=1){
+ const g=new T.IcosahedronGeometry(1,detail),p=g.attributes.position;
+ for(let i=0;i<p.count;i++){
+  const x=p.getX(i),y=p.getY(i),z=p.getZ(i);
+  const grain=Math.sin(x*17.1+seedValue*2.7)*Math.cos(z*14.3-seedValue*1.9);
+  const strata=Math.sin(y*12.5+seedValue*1.4);
+  const facet=1+.17*grain+.11*strata+.09*Math.sin(x*7.3+z*9.7+seedValue);
+  p.setXYZ(i,x*facet,y*(.87+.1*grain)*facet,z*facet);
+ }
+ p.needsUpdate=true;g.computeVertexNormals();return g;
+}
+const rockGeometryBank=[];
+function rockGeometry(variant,low){
+ const k=variant*2+(low?0:1);
+ if(!rockGeometryBank[k])rockGeometryBank[k]=makeRockGeometry(variant+1,low?0:1);
+ return rockGeometryBank[k];
+}
+
 function buildMap(idx,garage=false){
  clearWorld();seed=9281+idx*701;scene.fog.density=.0035;
  const palettes=[
@@ -181,7 +202,28 @@ function buildMap(idx,garage=false){
  const box=(x,y,z,w,h,d,c)=>mesh('box',c,x,y,z,w,h,d);
  const cyl=(x,y,z,r,h,c)=>mesh('cyl',c,x,y,z,r,h,r);
  const orb=(x,y,z,r,c)=>mesh('sphere',c,x,y,z,r,r,r);
- const rock=(x,z,r,c=stone)=>{const m=mesh('sphere',c,x,terrain(x,z)+r*.45,z,r,r*.75,r);m.rotation.set(rand(),rand()*6,rand());};
+ const rock=(x,z,r,c=stone)=>{
+  const v=Math.floor(rand()*6),m=new T.Mesh(rockGeometry(v,low),mat(c));
+  m.position.set(x,terrain(x,z)+r*.43,z);m.scale.set(r*(.8+rand()*.4),r*(.7+rand()*.5),r*(.8+rand()*.4));
+  m.rotation.set((rand()-.5)*.5,rand()*6.283,(rand()-.5)*.4);
+  m.castShadow=r>2;m.receiveShadow=true;world.add(m);return m;
+ };
+ const cliff=(x,z,width,height,depth,c=stone)=>{
+  const g=new T.BufferGeometry(),verts=[],faces=[],n=7;
+  for(let row=0;row<3;row++)for(let k=0;k<n;k++){
+   const a=k*2*Math.PI/n,rad=row===0?.62:row===1?1:.22;
+   const yy=row===0?0:row===1?height*.62:height;
+   const wobble=.76+rand()*.48;
+   verts.push(Math.cos(a)*width*rad*wobble,yy+(rand()-.5)*height*.1,Math.sin(a)*depth*rad*wobble);
+  }
+  for(let row=0;row<2;row++)for(let k=0;k<n;k++){const a=row*n+k,b=row*n+(k+1)%n,c=(row+1)*n+k,d=(row+1)*n+(k+1)%n;faces.push(a,b,c,b,d,c)}
+  for(let k=1;k<n-1;k++)faces.push(2*n,2*n+k,2*n+k+1);
+  const positions=[];for(const i of faces)positions.push(...verts.slice(i*3,i*3+3));
+  g.setAttribute('position',new T.Float32BufferAttribute(positions,3));g.computeVertexNormals();
+  const m=new T.Mesh(g,new T.MeshStandardMaterial({color:c,roughness:1,flatShading:true}));
+  m.position.set(x,terrain(x,z)-.5,z);m.castShadow=true;m.receiveShadow=true;
+  m.userData.ownedGeometry=true;m.userData.ownedMaterial=true;world.add(m);return m;
+ };
  const blocked=(x,z,r=4)=>Math.abs(x)<15||Math.abs(z)<15||Math.hypot(x,z+90)<24||obstacles.some(o=>Math.hypot(x-o.x,z-o.z)<o.r+r);
  const point=(min=22,max=125)=>{for(let k=0;k<40;k++){let x=(rand()-.5)*max*2,z=(rand()-.5)*max*2;if(!blocked(x,z,5)&&Math.hypot(x,z)>min)return [x,z]}return null};
  const obstacle=(x,z,r)=>obstacles.push({x,z,r});
@@ -209,7 +251,7 @@ function buildMap(idx,garage=false){
   }
   for(let i=0;i<8;i++){const x=-105+i*28,z=-90;box(x,4,z,12,8,10,0x7f929c);box(x,8.4,z,13,.8,11,0xb4c5cd);
    for(let j=-1;j<=1;j++)box(x+j*3,5,z+5.1,1.3,2,.2,0x293a48);obstacle(x,z,7)}
-  for(let i=0;i<5;i++){let x=60+i*13,z=82;mesh('cone',0xdde8eb,x,12,z,10,24,10)}
+  for(let i=0;i<5;i++){let x=60+i*13,z=82;cliff(x,z,10,24,10,0xdde8eb)}
   cyl(84,10,-72,1,20,0x758e9c);mesh('sphere',0xd2dfe7,84,21,-72,6,3,6);
  }else if(idx===3){ // Neon canyon: elevated expressways, towers, hologram billboards.
   for(let i=0;i<35*density;i++){const p=point();if(!p)continue;const [x,z]=p;const h=15+rand()*38;
@@ -251,9 +293,25 @@ function buildMap(idx,garage=false){
   };
   // Horizon: monumental jagged lunar ridge silhouettes, with multiple scales.
   for(let i=0;i<36;i++){const a=i*Math.PI*2/36,r=145+rand()*28,h=10+rand()*27;
-   const m=mesh('cone',i%3?0x424958:0x6a7180,Math.cos(a)*r,h*.34,Math.sin(a)*r,10+rand()*10,h,10+rand()*10);m.rotation.y=rand()*6;
+   cliff(Math.cos(a)*r,Math.sin(a)*r,10+rand()*11,h,9+rand()*10,i%3?0x424958:0x6a7180);
   }
   for(let i=0;i<Math.round(27*density);i++){const p=point(35,123);if(!p)continue;crater(p[0],p[1],3+rand()*8)}
+  // Instanced fractured boulders and rubble clusters (GPU-friendly).
+  const debrisCount=low?95:280,variants=5;
+  for(let v=0;v<variants;v++){
+   const n=Math.ceil(debrisCount/variants);
+   const inst=new T.InstancedMesh(rockGeometry(v,low),mat(v%3===0?0x555e6c:v%3===1?0x838996:0x686e7b),n);
+   const dummy=new T.Object3D();
+   for(let j=0;j<n;j++){
+    let x=(rand()-.5)*290,z=(rand()-.5)*290;
+    if(Math.abs(x)<17||Math.abs(z)<17){x+=23;z+=23}
+    const r=.4+Math.pow(rand(),2)*3.2;
+    dummy.position.set(x,terrain(x,z)+r*.3,z);
+    dummy.scale.set(r*(.8+rand()*.6),r*(.45+rand()*.6),r*(.75+rand()*.6));
+    dummy.rotation.set(rand()*.4,rand()*6.283,rand()*.3);dummy.updateMatrix();inst.setMatrixAt(j,dummy.matrix);
+   }
+   inst.instanceMatrix.needsUpdate=true;inst.receiveShadow=true;inst.castShadow=false;world.add(inst);
+  }
   // Earth visible above lunar horizon, using an unlit globe with clouds and continents.
   const earth=new T.Group();earth.position.set(-135,100,-170);world.add(earth);
   const globe=new T.Mesh(new T.SphereGeometry(20,low?16:32,low?12:24),new T.MeshBasicMaterial({color:0x2878b4}));earth.add(globe);globe.userData.ownedGeometry=true;globe.userData.ownedMaterial=true;
@@ -389,7 +447,7 @@ function buildMap(idx,garage=false){
   const x=Math.sin(a)*r,z=Math.cos(a)*r;
   if(idx===3||idx===4)box(x,20,z,20,40,22,stone);
   else if(idx===6)rock(x,z,12,stone);
-  else mesh('cone',stone,x,10,z,15,22,15);
+  else cliff(x,z,15,22,15,stone);
  }
  // Traversable cross-shaped combat routes; objects avoid central lanes.
  box(0,-.07,0,12,.06,290,idx===6?0x747e8b:idx===5?0x3a3030:idx===7?0x737d7d:groundColor);

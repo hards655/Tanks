@@ -43,30 +43,42 @@ return {ACESFilmicToneMapping:et,AddEquation:y,AddOperation:J,AdditiveAnimationB
 // Deterministic input, weapon and economy rules shared with the test suite.
 })();
 
+// Deterministic input, weapon and economy rules shared with the test suite.
 function joystickVector(x,y,deadzone=.12){const r=Math.hypot(x,y);if(r<=deadzone)return{x:0,y:0};const m=(Math.min(r,1)-deadzone)/(1-deadzone);return{x:x/r*m,y:y/r*m}}
 function damp(current,target,rate,dt){return current+(target-current)*(1-Math.exp(-rate*dt))}
 const PRODUCTS=[
  {id:'stabilizer',name:'Стабилизатор',category:'equipment',price:950,description:'На 30% быстрее наведение башни. Постоянное оборудование.'},
  {id:'rammer',name:'Досылатель',category:'equipment',price:1100,description:'Перезарядка основного орудия быстрее на 15%.'},
  {id:'cooler',name:'Охлаждение КП-12.7',category:'equipment',price:700,description:'На 35% меньше нагрев крупнокалиберного пулемёта.'},
+ {id:'optics',name:'Улучшенная оптика',category:'equipment',price:1300,description:'Увеличенная дальность обзора и более быстрый захват целей.'},
+ {id:'spallLiner',name:'Противоосколочный подбой',category:'equipment',price:1450,description:'На 20% меньше урона от фугасов HESH и HE.'},
+ {id:'wetRack',name:'Защищённая боеукладка',category:'equipment',price:1250,description:'Повышенная защита модулей от повреждений.'},
+ {id:'heavyTracks',name:'Усиленные гусеницы',category:'equipment',price:980,description:'Снижение времени ремонта повреждённых гусениц.'},
+ {id:'longBarrel',name:'Усиленный ствол',category:'equipment',price:1750,description:'На 12% выше бронепробитие основного орудия.'},
+ {id:'autoloader',name:'Быстрый затвор',category:'equipment',price:1600,description:'Перезарядка ещё на 10% быстрее.'},
+ {id:'gunLaying',name:'Приводы наведения',category:'equipment',price:900,description:'Увеличенная скорость поворота башни.'},
+ {id:'fieldWorkshop',name:'Полевой инструмент',category:'equipment',price:1100,description:'Усиленные ремкомплекты восстанавливают больше прочности.'},
+ {id:'smokeGrenades',name:'Дымовые гранатомёты',category:'equipment',price:1050,description:'Дают заряд дымовой завесы в бою (кнопка ДЫМ).'},
+ {id:'ammoPouch',name:'Дополнительные укладки',category:'equipment',price:1100,description:'Дополнительные специальные снаряды в начале боя.'},
  {id:'repairKit',name:'Дополнительный ремкомплект',category:'supplies',price:180,description:'Ещё один ремонт в следующем бою. Расходуется при выходе в бой.'},
  {id:'ammoCrate',name:'Расширенный боекомплект',category:'supplies',price:160,description:'+20 AP, +8 APCR, +6 HE и +120 патронов КП. На один бой.'},
  {id:'overdrive',name:'Усиленное топливо',category:'supplies',price:140,description:'+12% скорости в следующем бою.'},
+ {id:'supercharge',name:'Усиленный заряд',category:'supplies',price:220,description:'На один бой: +8% урона основных снарядов.'},
+ {id:'rationPack',name:'Экипажный паёк',category:'supplies',price:190,description:'На один бой: +8% скорости перезарядки и поворота башни.'},
  {id:'forest',name:'Лесной камуфляж',category:'paint',price:450,description:'Трёхцветная окраска. Только внешний вид.'},
  {id:'desert',name:'Пустынный камуфляж',category:'paint',price:450,description:'Песочная окраска. Только внешний вид.'},
  {id:'winter',name:'Зимний камуфляж',category:'paint',price:450,description:'Светлая полевая окраска. Только внешний вид.'},
  {id:'admin_ua',name:'Админский: Сине-жёлтый Трезубец',category:'paint',price:0,description:'Сине-жёлтая окраска с гербом-трезубцем. Бесплатный декоративный скин.'}
 ];
-function migrateProfile(s){s.inventory??={};s.equipment??=[];s.paints??=['factory'];s.loadout??={equipment:[],supplies:[],paint:'factory'};return s}
+function migrateProfile(s){s.inventory??={};s.equipment??=[];s.paints??=['factory'];s.loadout??={equipment:[],supplies:[],paint:'factory'};s.loadout.equipment??=[];s.loadout.supplies??=[];s.contract??={day:'',kills:0,wins:0,claimed:false};return s}
 function purchase(s,id){const p=PRODUCTS.find(p=>p.id===id);if(!p)return 'Товар не найден';if(p.category==='equipment'&&s.equipment.includes(id)||p.category==='paint'&&s.paints.includes(id))return 'Уже приобретено';if(s.credits<p.price)return 'Недостаточно кредитов';if(p.category==='supplies'&&(s.inventory[id]||0)>=10)return 'На складе уже 10';s.credits-=p.price;if(p.category==='equipment')s.equipment.push(id);else if(p.category==='paint')s.paints.push(id);else s.inventory[id]=(s.inventory[id]||0)+1;return null}
-function equip(s,id){const p=PRODUCTS.find(p=>p.id===id);if(!p)return 'Товар не найден';if(p.category==='paint'){if(!s.paints.includes(id))return 'Сначала купи окраску';s.loadout.paint=id;return null}const list=s.loadout[p.category];const i=list.indexOf(id);if(i>=0){list.splice(i,1);return null}if(p.category==='equipment'&&!s.equipment.includes(id)||p.category==='supplies'&&!s.inventory[id])return 'Нет на складе';if(list.length>=2)return 'Доступно два слота';list.push(id);return null}
+function equip(s,id){const p=PRODUCTS.find(p=>p.id===id);if(!p)return 'Товар не найден';if(p.category==='paint'){if(!s.paints.includes(id))return 'Сначала купи окраску';s.loadout.paint=id;return null}const list=s.loadout[p.category];const i=list.indexOf(id);if(i>=0){list.splice(i,1);return null}if(p.category==='equipment'&&!s.equipment.includes(id)||p.category==='supplies'&&!s.inventory[id])return 'Нет на складе';if(list.length>=(p.category==='equipment'?3:2))return p.category==='equipment'?'Доступно три слота':'Доступно два слота';list.push(id);return null}
 function consumeLoadout(s){const used=[];for(const id of s.loadout.supplies){if((s.inventory[id]||0)>0){s.inventory[id]--;used.push(id)}}return used}
 function createMG(extra=0){return{belt:60,reserve:240+extra,capacity:60,heat:0,cooldown:0,reloading:0,overheated:false}}
 function reloadMG(m){if(m.reloading||m.belt===m.capacity||m.reserve<=0)return false;m.reloading=4;return true}
 function tickMG(m,dt){m.cooldown=Math.max(0,m.cooldown-dt);m.heat=Math.max(0,m.heat-dt*18);if(m.overheated&&m.heat<35)m.overheated=false;if(m.reloading>0){m.reloading=Math.max(0,m.reloading-dt);if(m.reloading===0){const n=Math.min(m.capacity-m.belt,m.reserve);m.belt+=n;m.reserve-=n}}}
 function consumeMGShot(m,cooled=false){if(m.reloading||m.cooldown>0||m.overheated)return false;if(m.belt===0){reloadMG(m);return false}m.belt--;m.cooldown=.1;m.heat=Math.min(100,m.heat+(cooled?3.9:6));if(m.heat>=100)m.overheated=true;return true}
 function mgDamage(armor,rear){return armor<=60?11:rear?4:0}
-
 
 function bevelBox(){const s=new T.Shape();s.moveTo(-.46,-.46);s.lineTo(.46,-.46);s.lineTo(.46,.46);s.lineTo(-.46,.46);s.closePath();const g=new T.ExtrudeGeometry(s,{depth:.92,bevelEnabled:true,bevelThickness:.04,bevelSize:.04,bevelSegments:3,steps:1,curveSegments:1});g.translate(0,0,-.46);return g}
 const paintCache=new Map();
@@ -89,6 +101,9 @@ function softParticle(color){if(!particleMap){const size=64,bytes=new Uint8Array
 
 const $=id=>document.getElementById(id),clamp=(v,a,b)=>Math.max(a,Math.min(b,v)),angle=a=>Math.atan2(Math.sin(a),Math.cos(a)),lerp=T.MathUtils.lerp;
 const TYPES=[{name:'LYNX',class:'ЛЁГКИЙ / I',hp:760,speed:17,armor:45,damage:190,reload:2.5,price:0,color:0x798462,scale:.88},{name:'KESTREL',class:'ЛЁГКИЙ / II',hp:850,speed:20,armor:55,damage:200,reload:2.7,price:900,color:0x8c9275,scale:.92},{name:'VANGUARD',class:'СРЕДНИЙ / III',hp:1200,speed:14,armor:95,damage:280,reload:3.4,price:1800,color:0x65745b,scale:1},{name:'BASTION',class:'ТЯЖЁЛЫЙ / IV',hp:1700,speed:10,armor:140,damage:370,reload:4.5,price:3200,color:0x737c68,scale:1.15},{name:'MONOLITH',class:'ТЯЖЁЛЫЙ / V',hp:2200,speed:8,armor:175,damage:460,reload:5.2,price:4800,color:0x58665e,scale:1.25}];
+const AMMO_NAMES=['AP','APCR','HE','HEAT','HESH'];
+const AMMO_PEN=[145,245,55,272,96],AMMO_MULT=[1,.8,1.2,.94,1.46],AMMO_PRICES=[0,12,6,19,15];
+let ammoService=0,smokeCharges=0,smokeUntil=0,smokeOrigin={x:0,z:0},battleDamage=0,damageService=0;
 const MAP_NAMES=["Зелёная долина", "Пустынный рубеж", "Зимний фронт", "Неоновый каньон", "Ржавый мегаполис", "Вулканический разлом", "Лунная база", "Затопленный порт"];
 const RANKS=['Новобранец','Рекрут','Курсант','Стрелок','Наводчик','Механик','Разведчик','Боец','Ветеран','Сержант','Старшина','Лейтенант','Капитан','Майор','Полковник','Командир','Ас','Герой фронта','Легенда','Маршал стали'];
 const RANK_ICONS=['◇','◆','⬡','✦','✧','✪','◈','⬟','✶','★','✷','✹','✵','❖','✸','✺','✹','✪','✯','♛'];
@@ -115,6 +130,7 @@ const gun=new T.Group();gun.position.set(0,.18,.9);turret.add(gun);mesh('box',c,
 let seed=7;function rand(){seed=(seed*1664525+1013904223)>>>0;return seed/4294967296}
 function terrain(x,z){return .5*Math.sin(x*.035)*Math.cos(z*.043)+.18*Math.sin(z*.09)}
 function clearWorld(){world.traverse(o=>{if(o.userData.ownedGeometry)o.geometry.dispose();if(o.userData.ownedMaterial){o.material.map?.dispose();o.material.dispose()}});world.clear();tanks=[];obstacles=[];shots=[];particles=[]}
+
 // Enhanced procedural environments and a modeled industrial hangar.
 // Low-poly silhouettes + repeated structural detail: scalable on mobile.
 function environmentDetail(idx,garageMode=false){
@@ -147,11 +163,11 @@ function environmentDetail(idx,garageMode=false){
  }else if(idx===5){ // Lava channels, vents, volcanic caldera.
   scene.fog.density=.004;
   for(let i=0;i<30/step;i++){let x=(rand()-.5)*245,z=(rand()-.5)*245;if(Math.abs(x)<17||Math.abs(z)<17)continue;
-   let r=3+rand()*7;mesh('cone',0x30272b,x,r*.5,z,r,r*1.8,r);
+   let r=3+rand()*7;const a=mesh('box',0x30272b,x,r*.7,z,r*.8,r*1.5,r*.7);a.rotation.set(rand()*.6,rand()*6.28,rand()*.6);
    const lava=beam(x,.08,z,r*.65,.12,1.1,0xff4d0a);lava.rotation.y=rand()*6;
    if(i%4===0){mesh('cyl',0x4b3032,x,1.3,z,1.3,2.6,1.3);mesh('sphere',0xc16d44,x,3.2,z,1.6,1.3,1.6)}
   }
-  for(let i=0;i<8/step;i++){const x=(rand()-.5)*200,z=(rand()-.5)*200;mesh('cone',0x241e25,x,8,z,9,16,9);mesh('sphere',0xff6025,x,15.5,z,3,.5,3)}
+  for(let i=0;i<8/step;i++){const x=(rand()-.5)*200,z=(rand()-.5)*200;const a=mesh('box',0x241e25,x,8,z,12,16,11);a.rotation.set(rand()*.4,rand()*6.28,rand()*.35);mesh('sphere',0xff6025,x,15.5,z,3,.5,3)}
  }else if(idx===7){ // Harbor: cranes, piers, containers and flooded basins.
   for(let i=0;i<22/step;i++){const x=(rand()-.5)*230,z=(rand()-.5)*230;if(Math.abs(x)<14||Math.abs(z)<14)continue;
    beam(x,.04,z,8,.06,12,0x277f9a);for(let j=0;j<3;j++)beam(x+(j-1)*2,1.4,z,2,2.8,5,[0xa35c3d,0x4d7386,0x7a8b5e][j]);}
@@ -168,6 +184,7 @@ function environmentDetail(idx,garageMode=false){
   }
  }
 }
+
 
 // Stylized AAA-comic atmosphere: individually graded lighting and inked landmarks.
 function applyComicArt(idx,garageMode=false){
@@ -189,6 +206,7 @@ function applyComicArt(idx,garageMode=false){
   edge.scale.setScalar(1.026);o.add(edge);o.userData.comicLandmark=true;n++;
  }
 }
+
 
 // Procedural PBR surface library. High quality uses a real 4096x4096 albedo map;
 // low/medium use 512/1024 to protect Android GPU memory and startup time.
@@ -236,10 +254,12 @@ function terrainPBR(idx){
  const map=new T.CanvasTexture(canvas);map.wrapS=map.wrapT=T.RepeatWrapping;map.repeat.set(12,12);
  map.colorSpace=T.SRGBColorSpace;map.anisotropy=Math.min(8,renderer.capabilities.getMaxAnisotropy());map.needsUpdate=true;
  // Shared image used as a low-cost height detail source, avoiding another 4K allocation.
- const material=new T.MeshStandardMaterial({color:0xffffff,map,roughness:idx===7?.78:.96,metalness:idx===3?.14:0});
+ const material=new T.MeshStandardMaterial({color:0xffffff,map,bumpMap:map,bumpScale:idx===2?.05:.115,roughness:idx===7?.78:.96,metalness:idx===3?.14:0});
+ if(save.settings.quality==='high'&&!mobileGPU){material.onBeforeCompile=shader=>{shader.fragmentShader=shader.fragmentShader.replace('#include <color_fragment>','#include <color_fragment>\n diffuseColor.rgb *= .975 + .025*sin(vUv.x*775.)*sin(vUv.y*791.);')};}
  material.userData.ownedMap=map;
  return material;
 }
+
 
 // Original fractured rock meshes: angular strata and chipped silhouettes.
 // Shared geometry is reused across hundreds of instances; no external assets.
@@ -254,6 +274,7 @@ function makeRockGeometry(seedValue=1,detail=1){
  }
  p.needsUpdate=true;g.computeVertexNormals();return g;
 }
+
 // Small, reusable authored rock microdetail: no downloads or third-party assets.
 // One tiling 256px height field serves all cliff and boulder materials.
 let stoneBumpTexture=null;const stoneMaterialBank=new Map();
@@ -284,6 +305,125 @@ function rockGeometry(variant,low){
  return rockGeometryBank[k];
 }
 
+
+// 2026 terrain art pass: fully original meshes (no model downloads or copied game assets).
+// Trees use branching trunks and irregular leaf fans, never primitive cones/spheres.
+const naturalTreeCache=new Map(),naturalTreeMat=new T.MeshStandardMaterial({vertexColors:true,roughness:.99,side:T.DoubleSide,flatShading:true});
+function naturalTreeGeometry(kind=0,variant=0){
+ const key=kind+':'+variant;if(naturalTreeCache.has(key))return naturalTreeCache.get(key);
+ const verts=[],colors=[];const wood=[.19,.12,.072],green=kind===2?[.30,.43,.33]:kind===1?[.12,.25,.22]:[.11,.32,.17];
+ const shade=(c,k)=>c.map(v=>Math.max(0,Math.min(1,v*k)));
+ const face=(a,b,c,col)=>{for(const p of [a,b,c]){verts.push(...p);colors.push(...col)}};
+ // Tapered seven-sided trunk built as an explicit branch mesh, not a cylinder/cone.
+ for(let side=0;side<7;side++){
+  const a=side*Math.PI*2/7,b=(side+1)*Math.PI*2/7;
+  const br=.09+variant*.008,tr=.018;
+  const v0=[Math.cos(a)*br,0,Math.sin(a)*br],v1=[Math.cos(b)*br,0,Math.sin(b)*br];
+  const top0=[Math.cos(a)*tr,.91,Math.sin(a)*tr],top1=[Math.cos(b)*tr,.91,Math.sin(b)*tr];
+  face(v0,v1,top1,shade(wood,.78+side*.08));face(v0,top1,top0,shade(wood,.8+side*.08));
+ }
+ const levels=kind===1?7:kind===2?4:6,branches=kind===2?7:6;
+ for(let j=0;j<levels;j++){
+  const h=kind===2?.40+j*.11:.17+j*.105;
+  const range=kind===1?.45:.42,spread=(kind===2?.35:.45)*(1-j/levels*.79);
+  for(let n=0;n<branches;n++){
+   const a=(n+(j%2)*.47)*Math.PI*2/branches+variant*.27;
+   const radius=spread*(.75+.23*Math.sin(n*2.17+j));
+   const ax=Math.cos(a),az=Math.sin(a),sideX=-az,sideZ=ax;
+   const p=[ax*.03,h,az*.03],tip=[ax*radius,h+(kind===2?.11:-.012)+Math.sin(n+j)*.012,az*radius];
+   const twig=[ax*(radius*.82),h+.024,az*(radius*.82)];
+   const c=shade(wood,.75+j*.07);
+   face([p[0]+sideX*.018,p[1],p[2]+sideZ*.018],[p[0]-sideX*.018,p[1],p[2]-sideZ*.018],twig,c);
+   const leaf=shade(green,.76+(n%4)*.14+(j%3)*.065);
+   if(kind===2){
+    // Lobed deciduous leaf fans, complex asymmetrical polygon canopy.
+    for(let l=0;l<3;l++){
+     const theta=a+(l-1)*.4;
+     const r=.11+(j%2)*.055,tx=tip[0]+Math.cos(theta)*r,tz=tip[2]+Math.sin(theta)*r;
+     const leafP=[tx,tip[1]+.08+(l%2)*.065,tz];
+     face([tip[0]-sideX*.1,tip[1],tip[2]-sideZ*.1],[tip[0]+sideX*.1,tip[1],tip[2]+sideZ*.1],leafP,shade(leaf,.92+l*.065));
+     face(leafP,[tx+sideX*.11,tip[1]-.025,tz+sideZ*.11],[tx-sideX*.09,tip[1]-.04,tz-sideZ*.09],leaf);
+    }
+   }else{
+    // Long needles arranged in offset fan blades. Irregular, non-conical silhouette.
+    const flank=.09*(1-j/levels*.5);
+    const upper=[ax*radius*.53,h+.105,az*radius*.53],lower=[ax*radius*.6,h-.048,az*radius*.6];
+    face([p[0]+sideX*flank,p[1],p[2]+sideZ*flank],tip,upper,leaf);
+    face(tip,[p[0]-sideX*flank,p[1],p[2]-sideZ*flank],upper,shade(leaf,.82));
+    face(lower,tip,upper,shade(leaf,.7));
+   }
+  }
+ }
+ const g=new T.BufferGeometry();
+ g.setAttribute('position',new T.Float32BufferAttribute(verts,3));g.setAttribute('color',new T.Float32BufferAttribute(colors,3));
+ g.computeVertexNormals();g.computeBoundingSphere();naturalTreeCache.set(key,g);return g;
+}
+function scatterModeledTrees(count,kind,blocked,rand,terrain){
+ const low=save.settings.quality==='low',n=low?Math.ceil(count*.65):count;
+ for(let v=0;v<3;v++){
+  const part=Math.ceil(n/3),im=new T.InstancedMesh(naturalTreeGeometry(kind,v),naturalTreeMat,part),obj=new T.Object3D();
+  for(let i=0;i<part;i++){
+   let x=0,z=0;
+   for(let attempts=0;attempts<20;attempts++){x=(rand()-.5)*265;z=(rand()-.5)*265;if(!blocked(x,z,3)&&Math.hypot(x,z)>24)break}
+   const size=(kind===2?9:12)*(0.65+rand()*.62);
+   obj.position.set(x,terrain(x,z)-.05,z);
+   obj.rotation.set(0,rand()*6.283,0);obj.scale.set(size,size,size);obj.updateMatrix();im.setMatrixAt(i,obj.matrix);
+  }
+  im.instanceMatrix.needsUpdate=true;im.castShadow=!low;im.receiveShadow=true;
+  im.frustumCulled=false;world.add(im);
+ }
+}
+const roofForm=(()=>{
+ const verts=[],faces=[[0,2,4],[0,4,3],[1,5,2],[1,3,5],[0,1,2],[0,3,1],[3,4,5],[3,5,1]];
+ const p=[[-.5,0,-.5],[.5,0,-.5],[0,1,-.5],[-.5,0,.5],[0,1,.5],[.5,0,.5]];
+ for(const f of faces)for(const id of f)verts.push(...p[id]);
+ const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(verts,3));g.computeVertexNormals();return g;
+})();
+function gableRoof(x,y,z,w,h,d,color,angle=0){
+ const m=new T.Mesh(roofForm,mat(color));m.position.set(x,y,z);m.scale.set(w,h,d);m.rotation.y=angle;m.castShadow=true;m.receiveShadow=true;world.add(m);return m;
+}
+function hazardMaterial(type){
+ if(hazardMaterial.cache?.[type])return hazardMaterial.cache[type];
+ const water=type==='water';
+ const material=new T.ShaderMaterial({
+  uniforms:{uTime:{value:0},uWater:{value:water?1:0}},
+  vertexShader:'varying vec2 vUv; void main(){vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}',
+  fragmentShader:`precision mediump float;
+   varying vec2 vUv; uniform float uTime;uniform float uWater;
+   void main(){
+    vec2 p=vUv*12.;
+    float a=sin(p.x*2.3+sin(p.y*.7+uTime*.36)*1.8+uTime*.7);
+    float b=cos(p.y*1.7+p.x*.52-uTime*.45);
+    float wave=a*.55+b*.45;
+    float crack=smoothstep(.22,.72,wave);
+    vec3 lava=mix(vec3(.10,.018,.01),vec3(1.,.19,.025),crack);
+    lava+=vec3(.45,.18,.015)*pow(max(wave,0.),5.);
+    vec3 water=vec3(.055,.30,.39)+vec3(.08,.16,.17)*(wave*.5+.5);
+    vec3 c=mix(lava,water,uWater);
+    gl_FragColor=vec4(c,uWater>.5?.86:1.);
+   }`,
+  transparent:water,side:T.DoubleSide,depthWrite:!water
+ });
+ hazardMaterial.cache??={};hazardMaterial.cache[type]=material;return material;
+}
+const hazardGeo=new T.PlaneGeometry(1,1);
+function hazardPatch(x,z,w,d,type){const m=new T.Mesh(hazardGeo,hazardMaterial(type));m.rotation.x=-Math.PI/2;m.position.set(x,terrain(x,z)+.055,z);m.scale.set(w,d,1);m.renderOrder=1;world.add(m);return m}
+function biomeRubble(idx,low,rand,terrain){
+ if(idx===6)return;
+ const palette=[0x6c735d,0xa08762,0x9da6a9,0x40425a,0x71645f,0x332d30,0x747b89,0x5a6e72];
+ const cnt=low?48:save.settings.quality==='high'?165:95;
+ for(let variant=0;variant<3;variant++){
+  const n=Math.ceil(cnt/3),geometry=rockGeometry(variant,low),m=new T.InstancedMesh(geometry,stoneMaterial(palette[idx]),n),dummy=new T.Object3D();
+  for(let i=0;i<n;i++){
+   let x=(rand()-.5)*280,z=(rand()-.5)*280;if(Math.abs(x)<18||Math.abs(z)<18){x+=27;z-=29}
+   const r=.35+Math.pow(rand(),2)*2.8;
+   dummy.position.set(x,terrain(x,z)+r*.35,z);dummy.rotation.set((rand()-.5)*.6,rand()*6.283,(rand()-.5)*.6);
+   dummy.scale.set(r*(.8+rand()*.6),r*(.4+rand()*.6),r*(.7+rand()*.6));dummy.updateMatrix();m.setMatrixAt(i,dummy.matrix);
+  }
+  m.instanceMatrix.needsUpdate=true;m.castShadow=false;m.receiveShadow=true;world.add(m);
+ }
+}
+
 function buildMap(idx,garage=false){
  clearWorld();seed=9281+idx*701;scene.fog.density=.0035;
  const palettes=[
@@ -294,7 +434,8 @@ function buildMap(idx,garage=false){
  const [groundColor,sky,stone]=palettes[idx]||palettes[0];
  scene.background.set(sky);scene.fog.color.set(sky);
  if(idx===6)scene.fog.density=.0015;
- const groundGeo=new T.PlaneGeometry(400,400,48,48);groundGeo.rotateX(-Math.PI/2);
+ const terrainSegments=save.settings.quality==='high'?104:save.settings.quality==='low'?36:64;
+ const groundGeo=new T.PlaneGeometry(400,400,terrainSegments,terrainSegments);groundGeo.rotateX(-Math.PI/2);
  const ps=groundGeo.attributes.position;
  for(let i=0;i<ps.count;i++){const x=ps.getX(i),z=ps.getZ(i);let y=terrain(x,z)-.12;
   if(idx===5)y+=.35*Math.sin(x*.14+Math.cos(z*.1));
@@ -337,16 +478,15 @@ function buildMap(idx,garage=false){
  const obstacle=(x,z,r)=>obstacles.push({x,z,r});
  // Each arena has its own architecture, silhouettes, terrain palette and landmarks.
  if(idx===0){ // Valley: timber village, forest, wooden bridge, watchtower.
-  for(let i=0;i<Math.round(42*density);i++){const p=point();if(!p)continue;const [x,z]=p;let h=5+rand()*5;
-   cyl(x,h*.4,z,.45,h*.8,0x5c4c35);mesh('cone',0x31553b,x,h,z,2.8,h*.9,2.8);if(i%6===0)rock(x+3,z+2,2);
-  }
-  for(let i=0;i<13;i++){const p=point(30,115);if(!p)continue;const [x,z]=p;box(x,2,z,7,4,6,0x8c7658);mesh('cone',0x5b4a3d,x,5,z,5,3,4);for(let j=-1;j<=1;j++)box(x+j*2,2.2,z+3.04,.7,1,.12,0x273f45);obstacle(x,z,5)}
-  for(let x of [-60,60]){for(let z of [-40,40]){cyl(x,6,z,.6,12,0x574d39);box(x,12,z,7,.7,7,0x705a3b);mesh('cone',0x47543c,x,14,z,5,3,5)}}
+  scatterModeledTrees(Math.round(70*density),2,blocked,rand,terrain);
+  scatterModeledTrees(Math.round(36*density),0,blocked,rand,terrain);
+  for(let i=0;i<13;i++){const p=point(30,115);if(!p)continue;const [x,z]=p;box(x,2,z,7,4,6,0x8c7658);gableRoof(x,4,z,8.6,2.8,7.5,0x594a38);for(let j=-1;j<=1;j++)box(x+j*2,2.2,z+3.04,.7,1,.12,0x273f45);obstacle(x,z,5)}
+  for(let x of [-60,60]){for(let z of [-40,40]){cyl(x,6,z,.6,12,0x574d39);box(x,12,z,7,.7,7,0x705a3b);gableRoof(x,12.3,z,8.2,2.8,8.2,0x47543c)}}
   for(let i=-6;i<=6;i++)box(82,.2,i*2.3,14,.35,2,0x82694b);
  }else if(idx===1){ // Desert: sandstone canyon, dunes, ancient ruins, refinery.
   for(let i=0;i<35*density;i++){const p=point();if(!p)continue;const [x,z]=p;const h=4+rand()*18;
    if(i%3===0){cyl(x,h/2,z,2.2,h,0x9a7652);box(x,h,z,6,1,6,0xc5a273)}
-   else{mesh('cone',0x9b7653,x,h*.45,z,3+rand()*4,h,3+rand()*4)}
+   else{cliff(x,z,3+rand()*4,h,3+rand()*4,0x9b7653)}
    if(i%4===0)obstacle(x,z,4);
   }
   for(let i=0;i<6;i++){const x=-95+i*33,z=75;box(x,2,z,12,4,11,0x9e8061);box(x,5,z,13,2,12,0xc3a177);
@@ -354,9 +494,7 @@ function buildMap(idx,garage=false){
   for(let i=0;i<5;i++){let x=90,z=-85+i*32;cyl(x,7,z,3,14,0x77716a);cyl(x,15,z,3.8,2,0xc0a46f);box(x,19,z,.2,7,.2,0x4d514c)}
  }else if(idx===2){ // Snow: alpine fortress, frozen lake, radar station.
   box(-76,-.08,60,75,.16,65,0x8cc6d7);
-  for(let i=0;i<34*density;i++){const p=point();if(!p)continue;const [x,z]=p;const h=5+rand()*8;
-   cyl(x,h*.4,z,.35,h*.8,0x4c514f);for(let j=0;j<3;j++)mesh('cone',0x476c64,x,h*.4+j*h*.22,z,2.6-j*.4,h*.48,2.6-j*.4);
-  }
+  scatterModeledTrees(Math.round(80*density),1,blocked,rand,terrain);
   for(let i=0;i<8;i++){const x=-105+i*28,z=-90;box(x,4,z,12,8,10,0x7f929c);box(x,8.4,z,13,.8,11,0xb4c5cd);
    for(let j=-1;j<=1;j++)box(x+j*3,5,z+5.1,1.3,2,.2,0x293a48);obstacle(x,z,7)}
   for(let i=0;i<5;i++){let x=60+i*13,z=82;cliff(x,z,10,24,10,0xdde8eb)}
@@ -378,11 +516,11 @@ function buildMap(idx,garage=false){
   for(let i=0;i<15;i++){let x=(rand()-.5)*250,z=(rand()-.5)*250;if(blocked(x,z))continue;box(x,.4,z,3+rand()*5,.8,2,0x494743)}
  }else if(idx===5){ // Volcano: huge caldera, lava rivers, basalt pillars, ash vents.
   for(let i=0;i<33*density;i++){const p=point();if(!p)continue;const [x,z]=p;const h=6+rand()*17;
-   mesh('cone',0x2a272b,x,h*.48,z,3+rand()*5,h,3+rand()*5);
+   cliff(x,z,3+rand()*5,h,3+rand()*5,0x2a272b);
    if(i%3===0){orb(x,h,z,1.5,0xf36c22);obstacle(x,z,5)}
   }
-  for(let i=0;i<13;i++){const x=-120+i*20,z=85+Math.sin(i*.8)*9;box(x,.08,z,21,.14,9,0xff4b09);box(x,.18,z+5,21,.22,1.1,0x3a2829)}
-  for(let i=0;i<6;i++){let x=-95+i*38,z=-100;mesh('cone',0x1c1d22,x,18,z,11,36,11);orb(x,35,z,3,0xff5e1c)}
+  for(let i=0;i<13;i++){const x=-120+i*20,z=85+Math.sin(i*.8)*9;hazardPatch(x,z,21,8.6,'lava');box(x,.18,z+5,21,.22,1.1,0x3a2829)}
+  for(let i=0;i<6;i++){let x=-95+i*38,z=-100;cliff(x,z,11,36,11,0x1c1d22);orb(x,35,z,3,0xff5e1c)}
   for(let i=0;i<8;i++){let x=90,z=-95+i*27;cyl(x,6,z,2.5,12,0x39353a);orb(x,12,z,2,0xffa047)}
  }else if(idx===6){ // MOON / ARTEMIS OUTPOST: authored landmarks + modular high-detail geometry.
   scene.background.set(0x070b19);scene.fog.color.set(0x171f31);scene.fog.density=.0013;
@@ -473,7 +611,7 @@ function buildMap(idx,garage=false){
    beam(x,4.15,z,9.5,.25,6.5,0xc0cbd2);
   }
   // Surface rock scatter, using instanced geometry to reduce draw calls.
-  const count=Math.round(130*density),inst=new T.InstancedMesh(geo.sphere,mat(0x656c7b),count),dummy=new T.Object3D();
+  const count=Math.round(130*density),inst=new T.InstancedMesh(rockGeometry(4,low),stoneMaterial(0x656c7b),count),dummy=new T.Object3D();
   for(let i=0;i<count;i++){let x=(rand()-.5)*290,z=(rand()-.5)*290,r=.3+rand()*1.6;
    if(Math.abs(x)<14||Math.abs(z)<14){x+=20;z+=20}
    dummy.position.set(x,r*.23,z);dummy.scale.set(r,r*.55,r*.85);dummy.rotation.set(rand(),rand()*6,rand());dummy.updateMatrix();inst.setMatrixAt(i,dummy.matrix)}
@@ -539,7 +677,7 @@ function buildMap(idx,garage=false){
   };
   hangar(-77,-69,1.05);
  }else if(idx===7){ // Flooded port: water basins, container yards, gantry cranes, ship.
-  for(let x of [-95,95])box(x,.04,0,25,.08,260,0x2c829a);
+  for(let x of [-95,95])hazardPatch(x,0,25,260,'water');
   for(let i=0;i<30*density;i++){const p=point();if(!p)continue;const [x,z]=p;
    const c=[0xb75c42,0x4d8296,0xc3a357,0x617c65][i%4];
    for(let k=0;k<2;k++){box(x,1.35+k*2.8,z,7,2.6,3,c);for(let j=-2;j<=2;j++)box(x+j*1.15,1.3+k*2.8,z+1.56,.12,2.1,.1,0x343f43)}
@@ -550,6 +688,7 @@ function buildMap(idx,garage=false){
   box(88,1.3,85,55,2.5,17,0x424c56);box(85,5,85,21,6,14,0xd6d9cf);
   for(let i=0;i<8;i++)box(-115+i*32,.15,105,23,.3,9,0x6b665b);
  }
+ biomeRubble(idx,low,rand,terrain);
  // Map-specific boundary silhouettes; no shared fake village/forest overlay.
  for(let i=0;i<20;i++){const a=i*Math.PI/10,r=170+rand()*24;
   const x=Math.sin(a)*r,z=Math.cos(a)*r;
@@ -562,7 +701,8 @@ function buildMap(idx,garage=false){
  box(0,-.07,0,290,.06,11,idx===6?0x747e8b:idx===5?0x3a3030:idx===7?0x737d7d:groundColor);
  applyComicArt(idx,false);batchRigid(world);
 }
-function makeTank(type,team,x,z,isPlayer=false){const visual=model(type,team),u=isPlayer?(save.upgrades[type]||[0,0,0]):[0,0,0],d=TYPES[type];const t={...visual,type,team,isPlayer,x,z,yaw:team?Math.PI:0,turretYaw:team?Math.PI:0,pitch:0,hp:d.hp*(1+.12*u[0]),maxHp:d.hp*(1+.12*u[0]),armor:d.armor*(1+.12*u[0]),maxSpeed:d.speed*(1+.08*u[1]),damage:d.damage*(1+.12*u[2]),reload:d.reload,speed:0,cool:1,dead:false,track:0,engine:0,ammo:0,rounds:[50,15,12],mg:createMG(),repairs:1,inputX:0,inputY:0,think:rand(),target:null,steer:0,throttle:0};if(isPlayer){const used=consumeLoadout(save);t.repairs=1+(used.includes('repairKit')?1:0);if(used.includes('ammoCrate')){t.rounds=[70,23,18];t.mg=createMG(120)}if(used.includes('overdrive'))t.maxSpeed*=1.12;if(save.loadout.equipment.includes('rammer'))t.reload*=.85;persist()}t.root.position.set(x,terrain(x,z),z);world.add(t.root);tanks.push(t);return t}
+function makeTank(type,team,x,z,isPlayer=false){const visual=model(type,team),u=isPlayer?(save.upgrades[type]||[0,0,0]):[0,0,0],d=TYPES[type];const t={...visual,type,team,isPlayer,x,z,yaw:team?Math.PI:0,turretYaw:team?Math.PI:0,pitch:0,hp:d.hp*(1+.12*u[0]),maxHp:d.hp*(1+.12*u[0]),armor:d.armor*(1+.12*u[0]),maxSpeed:d.speed*(1+.08*u[1]),damage:d.damage*(1+.12*u[2]),reload:d.reload,speed:0,cool:1,dead:false,track:0,engine:0,ammo:0,rounds:[50,15,12,8,6],mg:createMG(),repairs:1,inputX:0,inputY:0,think:rand(),target:null,steer:0,throttle:0};if(isPlayer){const used=consumeLoadout(save);t.repairs=1+(used.includes('repairKit')?1:0);if(used.includes('ammoCrate')){t.rounds=[70,23,18,12,10];t.mg=createMG(120)}if(used.includes('overdrive'))t.maxSpeed*=1.12;if(save.loadout.equipment.includes('ammoPouch')){t.rounds[3]+=8;t.rounds[4]+=6}if(used.includes('supercharge'))t.damage*=1.08;if(used.includes('rationPack'))t.reload*=.92;if(save.loadout.equipment.includes('rammer'))t.reload*=.85;if(save.loadout.equipment.includes('autoloader'))t.reload*=.9;persist()}t.root.position.set(x,terrain(x,z),z);world.add(t.root);tanks.push(t);return t}
+
 let tourYaw=.65,tourPitch=.38,tourDistance=95,tourCenter=new T.Vector3(0,3,0),tourPointer=null;
 function tourUI(){
  let panel=$('tourPanel');
@@ -594,21 +734,25 @@ function installTourButton(){
  const start=$('start');start.parentNode.insertBefore(btn,start.nextSibling);btn.onclick=startTour;
 }
 function garage(){state='garage';$('garage').hidden=false;$('hud').hidden=true;$('overlay').hidden=true;zoom=0;buildMap(0,true);preview=model(selected);world.add(preview.root);garageUI();installTourButton()}
-function garageUI(){$('credits').textContent=save.credits.toLocaleString('ru');$('stats').textContent=`БОЁВ ${save.stats.battles} / ПОБЕД ${save.stats.wins} / УНИЧТОЖЕНО ${save.stats.kills}`;$('rankPanel').innerHTML=rankMarkup();$('tankCards').innerHTML=TYPES.map((d,i)=>`<button class="tankCard ${i===selected?'active':''}" data-tank="${i}">${d.name}<small>${save.owned.includes(i)?d.class:'◈ '+d.price}</small></button>`).join('');document.querySelectorAll('[data-tank]').forEach(b=>b.onclick=()=>{selected=+b.dataset.tank;world.remove(preview.root);preview.root.traverse(o=>{if(o.userData.ownedGeometry)o.geometry.dispose()});preview=model(selected);world.add(preview.root);garageUI();sound('ui')});const d=TYPES[selected],u=save.upgrades[selected]||[0,0,0];$('spec').innerHTML=`<div class="eyebrow">${d.class}</div><h2>${d.name}</h2>${[['Прочность',Math.round(d.hp*(1+.12*u[0])),2500],['Броня',Math.round(d.armor*(1+.12*u[0])),250],['Скорость',Math.round(d.speed*3.6*(1+.08*u[1])),90],['Урон',Math.round(d.damage*(1+.12*u[2])),650]].map(([n,v,m])=>`<div class="stat">${n}<b>${v}</b><div class="bar"><i style="width:${v/m*100}%"></i></div></div>`).join('')}${save.owned.includes(selected)?`<div id="upgrades">${['Броня','Мотор','Орудие'].map((n,i)=>`<button data-up="${i}">${n} ${u[i]}/3<br>${u[i]<3?'◈ '+(300+u[i]*300):'MAX'}</button>`).join('')}</div>`:`<button id="buy" class="primary">Купить · ${d.price} ◈</button>`}`;if($('buy'))$('buy').onclick=()=>{if(save.credits<d.price)return notify('Недостаточно кредитов');save.credits-=d.price;save.owned.push(selected);persist();garageUI()};document.querySelectorAll('[data-up]').forEach(b=>b.onclick=()=>{let i=+b.dataset.up,cost=300+u[i]*300;if(u[i]>=3)return;if(save.credits<cost)return notify('Недостаточно кредитов');save.credits-=cost;u[i]++;save.upgrades[selected]=u;persist();garageUI()});$('start').disabled=!save.owned.includes(selected)}
-function startBattle(){initAudio();state='loading';$('garage').hidden=true;$('overlay').hidden=false;$('overlay').innerHTML='<div class="dialog"><div class="eyebrow">ПОДГОТОВКА ОПЕРАЦИИ</div><h2>Загрузка боевой зоны…</h2></div>';setTimeout(()=>{mapIndex=$('map').selectedIndex;mode=$('mode').value;buildMap(mapIndex);player=makeTank(selected,0,0,-90,true);if(mode==='team')for(let i=0;i<3;i++)makeTank(i,0,(i-1)*12,-80);wave=1;kills=0;earned=0;elapsed=0;repairUsed=false;aimYaw=0;aimPitch=.04;viewYaw=0;viewPitch=.04;resetInput();zoom=0;autoLock=false;if(mode==='flag'){makeTank(0,1,0,80);initFlag()}else spawnWave();state='battle';$('overlay').hidden=true;$('hud').hidden=false;$('scope').hidden=true;$('tankName').textContent=TYPES[selected].name;$('repair').disabled=false;notify(mode==='flag'?'ЗАХВАТИ ФЛАГ И УДЕРЖИ ЕГО 45 СЕКУНД':'ОПЕРАЦИЯ НАЧАЛАСЬ · Уничтожь противника');if(mobile){document.documentElement.requestFullscreen?.().catch(()=>{});screen.orientation?.lock?.('landscape').catch(()=>{})}},80)}
+function garageUI(){$('credits').textContent=save.credits.toLocaleString('ru');$('stats').textContent=`БОЁВ ${save.stats.battles} / ПОБЕД ${save.stats.wins} / УНИЧТОЖЕНО ${save.stats.kills}`;$('rankPanel').innerHTML=rankMarkup();$('tankCards').innerHTML=TYPES.map((d,i)=>`<button class="tankCard ${i===selected?'active':''}" data-tank="${i}">${d.name}<small>${save.owned.includes(i)?d.class:'◈ '+d.price}</small></button>`).join('');document.querySelectorAll('[data-tank]').forEach(b=>b.onclick=()=>{selected=+b.dataset.tank;world.remove(preview.root);preview.root.traverse(o=>{if(o.userData.ownedGeometry)o.geometry.dispose()});preview=model(selected);world.add(preview.root);garageUI();sound('ui')});const d=TYPES[selected],u=save.upgrades[selected]||[0,0,0];$('spec').innerHTML=`<div class="eyebrow">${d.class}</div><h2>${d.name}</h2>${[['Прочность',Math.round(d.hp*(1+.12*u[0])),2500],['Броня',Math.round(d.armor*(1+.12*u[0])),250],['Скорость',Math.round(d.speed*3.6*(1+.08*u[1])),90],['Урон',Math.round(d.damage*(1+.12*u[2])),650]].map(([n,v,m])=>`<div class="stat">${n}<b>${v}</b><div class="bar"><i style="width:${v/m*100}%"></i></div></div>`).join('')}${save.owned.includes(selected)?`<div id="upgrades">${['Броня','Мотор','Орудие'].map((n,i)=>`<button data-up="${i}">${n} ${u[i]}/3<br>${u[i]<3?'◈ '+(300+u[i]*300):'MAX'}</button>`).join('')}</div>`:`<button id="buy" class="primary">Купить · ${d.price} ◈</button>`}`;if($('buy'))$('buy').onclick=()=>{if(save.credits<d.price)return notify('Недостаточно кредитов');save.credits-=d.price;save.owned.push(selected);persist();garageUI()};document.querySelectorAll('[data-up]').forEach(b=>b.onclick=()=>{let i=+b.dataset.up,cost=300+u[i]*300;if(u[i]>=3)return;if(save.credits<cost)return notify('Недостаточно кредитов');save.credits-=cost;u[i]++;save.upgrades[selected]=u;persist();garageUI()});$('start').disabled=!save.owned.includes(selected);contractUI()}
+function startBattle(){initAudio();state='loading';$('garage').hidden=true;$('overlay').hidden=false;$('overlay').innerHTML='<div class="dialog"><div class="eyebrow">ПОДГОТОВКА ОПЕРАЦИИ</div><h2>Загрузка боевой зоны…</h2></div>';setTimeout(()=>{mapIndex=$('map').selectedIndex;mode=$('mode').value;buildMap(mapIndex);player=makeTank(selected,0,0,-90,true);if(mode==='team')for(let i=0;i<3;i++)makeTank(i,0,(i-1)*12,-80);wave=1;kills=0;earned=0;elapsed=0;repairUsed=false;aimYaw=0;aimPitch=.04;viewYaw=0;viewPitch=.04;resetInput();zoom=0;autoLock=false;if(mode==='flag'){makeTank(0,1,0,80);initFlag()}else spawnWave();ammoService=0;battleDamage=0;damageService=0;smokeCharges=save.loadout.equipment.includes('smokeGrenades')?2:0;smokeUntil=0;ensureSmokeButton();state='battle';$('overlay').hidden=true;$('hud').hidden=false;$('scope').hidden=true;$('tankName').textContent=TYPES[selected].name;$('repair').disabled=false;notify(mode==='flag'?'ЗАХВАТИ ФЛАГ И УДЕРЖИ ЕГО 45 СЕКУНД':'ОПЕРАЦИЯ НАЧАЛАСЬ · Уничтожь противника');if(mobile){document.documentElement.requestFullscreen?.().catch(()=>{});screen.orientation?.lock?.('landscape').catch(()=>{})}},80)}
 function spawnWave(){for(let i=0;i<7;i++)makeTank(Math.min(4,Math.floor((i+wave-1)/3)),1,(i-3)*17,55+rand()*45);notify('ВОЛНА '+wave)}
 let noteTimer;function notify(s){$('notice').textContent=s;clearTimeout(noteTimer);noteTimer=setTimeout(()=>$('notice').textContent='',3000);if(state==='garage'){const old=$('stats').textContent;$('stats').textContent=s;setTimeout(()=>{$('stats').textContent=old},2400)}}
 let audio,engineOsc,engineGain,musicTime=0;function initAudio(){if(audio){audio.resume();return}audio=new(window.AudioContext||window.webkitAudioContext)();engineOsc=audio.createOscillator();engineOsc.type='sawtooth';engineGain=audio.createGain();engineGain.gain.value=0;engineOsc.connect(engineGain).connect(audio.destination);engineOsc.start()}
 function sound(kind){if(!audio||!save.settings.sound)return;const o=audio.createOscillator(),g=audio.createGain();o.connect(g).connect(audio.destination);const t=audio.currentTime;const settings={mg:[170,55,.09,.1],shot:[110,22,.35,.28],boom:[65,15,.65,.35],hit:[280,55,.13,.18],ui:[700,1000,.06,.03],music:[110,110,.8,.018]}[kind];o.type=kind==='ui'||kind==='music'?'sine':'sawtooth';o.frequency.setValueAtTime(settings[0],t);o.frequency.exponentialRampToValueAtTime(settings[1],t+settings[2]);g.gain.setValueAtTime(settings[3],t);g.gain.exponentialRampToValueAtTime(.001,t+settings[2]);o.start();o.stop(t+settings[2]);o.onended=()=>{o.disconnect();g.disconnect()}}
 function effect(pos,kind,count=12){const max=save.settings.quality==='low'?70:160;for(let i=0;i<count&&particles.length<max;i++){const smoke=kind==='smoke',m=softParticle(smoke?0x5a5c52:kind==='spark'?0xffe98a:i%2?0xff9f31:0x533e2a);m.position.copy(pos);m.scale.setScalar(.3);world.add(m);const life=smoke?2: .35+Math.random()*.7;particles.push({m,v:new T.Vector3((Math.random()-.5)*8,Math.random()*7,(Math.random()-.5)*8),life,max:life,smoke})}}
-function fire(t){if(t.dead||t.cool>0||t.rounds[t.ammo]<=0)return false;t.cool=t.reload;t.rounds[t.ammo]--;const dir=new T.Vector3(Math.sin(t.turretYaw)*Math.cos(t.pitch),Math.sin(t.pitch),Math.cos(t.turretYaw)*Math.cos(t.pitch));const p=new T.Vector3(t.x,terrain(t.x,t.z)+2.1,t.z).addScaledVector(dir,4.6*TYPES[t.type].scale);const m=mesh('sphere',0xffed99,p.x,p.y,p.z,.13,.13,.5);m.quaternion.setFromUnitVectors(new T.Vector3(0,0,1),dir);shots.push({m,p,prev:p.clone(),v:dir.multiplyScalar(105),owner:t,life:3,ammo:t.ammo});effect(p,'spark',8);if(t.isPlayer||Math.hypot(t.x-player.x,t.z-player.z)<55)sound('shot');t.gun.position.z=.65;return true}
+function fire(t){if(t.dead||t.cool>0||t.rounds[t.ammo]<=0)return false;t.cool=t.reload;t.rounds[t.ammo]--;if(t.isPlayer)ammoService+=AMMO_PRICES[t.ammo];const dir=new T.Vector3(Math.sin(t.turretYaw)*Math.cos(t.pitch),Math.sin(t.pitch),Math.cos(t.turretYaw)*Math.cos(t.pitch));if(!t.isPlayer&&smokeUntil>gameTime&&Math.hypot(player.x-smokeOrigin.x,player.z-smokeOrigin.z)<18){dir.x+=(Math.random()-.5)*.34;dir.y+=(Math.random()-.5)*.19;dir.z+=(Math.random()-.5)*.34;dir.normalize()}const p=new T.Vector3(t.x,terrain(t.x,t.z)+2.1,t.z).addScaledVector(dir,4.6*TYPES[t.type].scale);const m=mesh('sphere',0xffed99,p.x,p.y,p.z,.13,.13,.5);m.quaternion.setFromUnitVectors(new T.Vector3(0,0,1),dir);shots.push({m,p,prev:p.clone(),v:dir.multiplyScalar(105),owner:t,life:3,ammo:t.ammo});effect(p,'spark',8);if(t.isPlayer||Math.hypot(t.x-player.x,t.z-player.z)<55)sound('shot');t.gun.position.z=.65;return true}
 function segmentDistance(a,b,p){const ab=b.clone().sub(a),f=clamp(p.clone().sub(a).dot(ab)/ab.lengthSq(),0,1);return a.clone().addScaledVector(ab,f).distanceTo(p)}
-function impact(s,t){if(s.kind==='mg'){impactMG(s,t);return}const d=s.owner,front=Math.abs(Math.cos(Math.atan2(s.v.x,s.v.z)-t.yaw)),armor=t.armor*(.55+front*.45),pen=[145,245,55][s.ammo],ricochet=s.ammo!==2&&front<.22&&Math.random()<.5;let damage=ricochet?0:d.damage*(s.ammo===1?.8:s.ammo===2?1.2:1)*(pen>=armor?1:s.ammo===2?.4:.25);t.hp-=damage;if(d.isPlayer){$('hit').textContent=ricochet?'РИКОШЕТ':`${Math.round(damage)} · ${pen>=armor?'ПРОБИТИЕ':'БРОНЯ'}`;setTimeout(()=>$('hit').textContent='',1200)}effect(s.p,'spark',10);sound('hit');if(damage>0&&Math.random()<.25){if(Math.random()<.5)t.track=4;else t.engine=8;if(t.isPlayer)notify('МОДУЛЬ ПОВРЕЖДЁН · Используй ремонт')}if(t.hp<=0)destroyTank(t,d)}
+function impact(s,t){if(s.kind==='mg'){impactMG(s,t);return}const d=s.owner,front=Math.abs(Math.cos(Math.atan2(s.v.x,s.v.z)-t.yaw)),armor=t.armor*(.55+front*.45),pen=AMMO_PEN[s.ammo]*(d.isPlayer&&save.loadout.equipment.includes('longBarrel')?1.12:1),ricochet=(s.ammo===0||s.ammo===1)&&front<.22&&Math.random()<.5;
+ let damage=ricochet?0:d.damage*AMMO_MULT[s.ammo]*(pen>=armor?1:s.ammo===2||s.ammo===4?.4:.25);
+ if(t.isPlayer&&save.loadout.equipment.includes('spallLiner')&&(s.ammo===2||s.ammo===4))damage*=.8;
+ if(d.isPlayer)battleDamage+=Math.min(Math.max(t.hp,0),damage);
+ t.hp-=damage;if(d.isPlayer){$('hit').textContent=ricochet?'РИКОШЕТ':`${Math.round(damage)} · ${pen>=armor?'ПРОБИТИЕ':'БРОНЯ'}`;setTimeout(()=>$('hit').textContent='',1200)}effect(s.p,'spark',10);sound('hit');if(damage>0&&Math.random()<(t.isPlayer&&save.loadout.equipment.includes('wetRack')?.1:.25)){if(Math.random()<.5)t.track=t.isPlayer&&save.loadout.equipment.includes('heavyTracks')?2:4;else t.engine=8;if(t.isPlayer)notify('МОДУЛЬ ПОВРЕЖДЁН · Используй ремонт')}if(t.hp<=0)destroyTank(t,d)}
 function blocked(x,z,r=2.5){return Math.abs(x)>145||Math.abs(z)>145||obstacles.some(o=>Math.hypot(x-o.x,z-o.z)<o.r+r)}
 function lineClear(a,b){for(const o of obstacles){const dx=b.x-a.x,dz=b.z-a.z,f=clamp(((o.x-a.x)*dx+(o.z-a.z)*dz)/(dx*dx+dz*dz),0,1);if(Math.hypot(a.x+dx*f-o.x,a.z+dz*f-o.z)<o.r)return false}return true}
 function ai(t,dt){t.think-=dt;if(t.think<=0){t.think=.18+rand()*.18;t.target=tanks.filter(o=>!o.dead&&o.team!==t.team).sort((a,b)=>Math.hypot(t.x-a.x,t.z-a.z)-Math.hypot(t.x-b.x,t.z-b.z))[0]}const q=t.target;if(!q||q.dead){t.throttle=0;return}const dx=q.x-t.x,dz=q.z-t.z,dist=Math.hypot(dx,dz),desired=Math.atan2(dx,dz);t.turretYaw+=clamp(angle(desired-t.turretYaw),-dt*.8,dt*.8);t.pitch=Math.atan2(terrain(q.x,q.z)-terrain(t.x,t.z),dist)+.002;const visible=lineClear(t,q);let heading=desired,retreat=t.hp<t.maxHp*.27;if(retreat){let cover=obstacles.reduce((best,o)=>!best||Math.hypot(o.x-t.x,o.z-t.z)<Math.hypot(best.x-t.x,best.z-t.z)?o:best,null);if(cover){const vx=cover.x-q.x,vz=cover.z-q.z,l=Math.hypot(vx,vz);heading=Math.atan2(cover.x+vx/l*(cover.r+7)-t.x,cover.z+vz/l*(cover.r+7)-t.z)}else heading+=Math.PI}let avoid=0;for(const o of obstacles){const ox=o.x-t.x,oz=o.z-t.z,od=Math.hypot(ox,oz),diff=angle(Math.atan2(ox,oz)-t.yaw);if(od<o.r+12&&Math.abs(diff)<1.1)avoid+=diff>0?-1.7:1.7}heading+=avoid;t.steer=clamp(angle(heading-t.yaw)*1.8,-1,1);t.throttle=retreat||dist>42||!visible? .75:.12;if(Math.abs(angle(heading-t.yaw))>1.1)t.throttle=.16;if(visible&&dist<125&&Math.abs(angle(desired-t.turretYaw))<.055&&t.cool<=0){t.pitch+=(rand()-.5)*.014;fire(t)}}
 const keys={},joy={x:0,y:0},pointers=new Map();let fireHeld=false,mgHeld=false,drag,joyPointer=null;const cameraPointers=new Map();let viewYaw=0,viewPitch=.04;
-function updateTank(t,dt){tickMG(t.mg,dt);t.mgMount.rotation.x=-t.pitch;t.cool=Math.max(0,t.cool-dt);t.track=Math.max(0,t.track-dt);t.engine=Math.max(0,t.engine-dt);t.gun.position.z=lerp(t.gun.position.z,.9,1-Math.exp(-dt*14));if(t.dead){if(Math.random()<dt*5){effect(new T.Vector3(t.x,2,t.z),'smoke',2);effect(new T.Vector3(t.x,2,t.z),'boom',1)};return}if(t.isPlayer){const steerSign=save.settings.invertJoystick?1:-1,rawX=clamp((keys.KeyA?-1:0)+(keys.KeyD?1:0)+joy.x*steerSign,-1,1),rawY=clamp((keys.KeyW?1:0)-(keys.KeyS?1:0)-joy.y,-1,1);t.inputX=damp(t.inputX,rawX,12,dt);t.inputY=damp(t.inputY,rawY,rawY===0?14:7,dt);t.throttle=t.inputY;t.steer=t.inputX;if(autoLock||save.settings.assist){const target=tanks.filter(q=>q.team!==t.team&&!q.dead&&lineClear(t,q)).map(q=>({q,a:Math.atan2(q.x-t.x,q.z-t.z)})).filter(o=>Math.abs(angle(o.a-aimYaw))<(autoLock?.65:.075)).sort((a,b)=>Math.abs(angle(a.a-aimYaw))-Math.abs(angle(b.a-aimYaw)))[0];if(target){aimYaw+=angle(target.a-aimYaw)*dt*(autoLock?3:.7);if(autoLock)aimPitch=lerp(aimPitch,Math.atan2(terrain(target.q.x,target.q.z)-terrain(t.x,t.z),Math.hypot(target.q.x-t.x,target.q.z-t.z)),dt*3)}}const turnRate=save.loadout.equipment.includes('stabilizer')?1.82:1.4;t.turretYaw+=clamp(angle(aimYaw-t.turretYaw),-dt*turnRate,dt*turnRate);t.pitch=lerp(t.pitch,aimPitch,dt*6);if(fireHeld)fire(t);if(mgHeld||keys.Space)fireMG(t)}else ai(t,dt);
+function updateTank(t,dt){tickMG(t.mg,dt);t.mgMount.rotation.x=-t.pitch;t.cool=Math.max(0,t.cool-dt);t.track=Math.max(0,t.track-dt);t.engine=Math.max(0,t.engine-dt);t.gun.position.z=lerp(t.gun.position.z,.9,1-Math.exp(-dt*14));if(t.dead){if(Math.random()<dt*5){effect(new T.Vector3(t.x,2,t.z),'smoke',2);effect(new T.Vector3(t.x,2,t.z),'boom',1)};return}if(t.isPlayer){const steerSign=save.settings.invertJoystick?1:-1,rawX=clamp((keys.KeyA?-1:0)+(keys.KeyD?1:0)+joy.x*steerSign,-1,1),rawY=clamp((keys.KeyW?1:0)-(keys.KeyS?1:0)-joy.y,-1,1);t.inputX=damp(t.inputX,rawX,12,dt);t.inputY=damp(t.inputY,rawY,rawY===0?14:7,dt);t.throttle=t.inputY;t.steer=t.inputX;if(autoLock||save.settings.assist){const target=tanks.filter(q=>q.team!==t.team&&!q.dead&&lineClear(t,q)).map(q=>({q,a:Math.atan2(q.x-t.x,q.z-t.z)})).filter(o=>Math.abs(angle(o.a-aimYaw))<(autoLock?.65:.075)).sort((a,b)=>Math.abs(angle(a.a-aimYaw))-Math.abs(angle(b.a-aimYaw)))[0];if(target){aimYaw+=angle(target.a-aimYaw)*dt*(autoLock?3:.7);if(autoLock)aimPitch=lerp(aimPitch,Math.atan2(terrain(target.q.x,target.q.z)-terrain(t.x,t.z),Math.hypot(target.q.x-t.x,target.q.z-t.z)),dt*3)}}const turnRate=(save.loadout.equipment.includes('stabilizer')?1.82:1.4)*(save.loadout.equipment.includes('gunLaying')?1.2:1)*(save.loadout.supplies.includes('rationPack')?1.08:1);t.turretYaw+=clamp(angle(aimYaw-t.turretYaw),-dt*turnRate,dt*turnRate);t.pitch=lerp(t.pitch,aimPitch,dt*6);if(fireHeld)fire(t);if(mgHeld||keys.Space)fireMG(t)}else ai(t,dt);
 t.yaw+=t.steer*dt*(t.track?.18:.85)*(t.speed<-.5?-1:1);const targetSpeed=t.throttle*t.maxSpeed*(t.throttle<0?.55:1)*(t.track?.1:1)*(t.engine?.55:1);t.speed=damp(t.speed,targetSpeed,Math.abs(t.throttle)<.08?5:2,dt);const nx=t.x+Math.sin(t.yaw)*t.speed*dt,nz=t.z+Math.cos(t.yaw)*t.speed*dt;const collision=tanks.some(o=>o!==t&&!o.dead&&Math.hypot(nx-o.x,nz-o.z)<3.5);if(!blocked(nx,nz)&&!collision){t.x=nx;t.z=nz}else{t.speed*=.3;if(!t.isPlayer)t.yaw+=dt*.8}t.root.position.set(t.x,terrain(t.x,t.z),t.z);t.body.rotation.y=t.yaw;t.body.rotation.x=(terrain(t.x,t.z+1)-terrain(t.x,t.z-1))*.3;t.turret.rotation.y=angle(t.turretYaw-t.yaw);t.gun.rotation.x=-t.pitch;t.wheels.forEach(w=>w.rotation.x+=t.speed*dt*1.5);
 t.trackPhase=(t.trackPhase||0)+t.speed*dt*.055;
 for(const link of t.trackLinks){const u=((link.userData.phase+t.trackPhase)%1+1)%1,perimeter=11.8,dist=u*perimeter;let z,y,rotation=0;
@@ -617,13 +761,46 @@ link.position.set(link.userData.side*1.94,y,z);link.rotation.x=rotation}
 t.details.visible=t.isPlayer||Math.hypot(t.x-player.x,t.z-player.z)<55;t.wheels.forEach(w=>w.visible=t.isPlayer||Math.hypot(t.x-player.x,t.z-player.z)<65);if(Math.abs(t.speed)>5&&Math.random()<dt*5)effect(new T.Vector3(t.x,.4,t.z),'smoke',1)}
 function updateShots(dt){for(let i=shots.length-1;i>=0;i--){const s=shots[i];s.prev.copy(s.p);s.v.y-=.65*dt;s.p.addScaledVector(s.v,dt);s.m.position.copy(s.p);s.life-=dt;let hit=false;for(const t of tanks){if(t.dead||t.team===s.owner.team)continue;if(segmentDistance(s.prev,s.p,new T.Vector3(t.x,terrain(t.x,t.z)+1.5,t.z))<2.1*TYPES[t.type].scale){impact(s,t);hit=true;break}}if(!hit)for(const o of obstacles){if(segmentDistance(s.prev,s.p,new T.Vector3(o.x,2,o.z))<o.r){effect(s.p,'spark',5);hit=true;break}}if(hit||s.life<=0||s.p.y<terrain(s.p.x,s.p.z)){world.remove(s.m);shots.splice(i,1)}}}
 function updateEffects(dt){for(let i=particles.length-1;i>=0;i--){const p=particles[i];p.life-=dt;if(p.life<=0){world.remove(p.m);particles.splice(i,1);continue}p.m.position.addScaledVector(p.v,dt);p.v.multiplyScalar(1-dt*1.6);p.v.y+=p.smoke?dt*2:-dt*8;p.m.scale.setScalar(p.smoke?.2+(1-p.life/p.max)*1.8:.1+p.life*.3)}}
-function repair(){if(state!=='battle'||player.repairs<=0||player.dead)return;repairUsed=true;player.repairs--;player.hp=Math.min(player.maxHp,player.hp+player.maxHp*.35);player.track=player.engine=0;$('repair').disabled=player.repairs<=0;notify('РЕМОНТ ЗАВЕРШЁН · +35% ПРОЧНОСТИ');sound('ui')}
+function repair(){if(state!=='battle'||player.repairs<=0||player.dead)return;repairUsed=true;damageService+=55;player.repairs--;player.hp=Math.min(player.maxHp,player.hp+player.maxHp*(save.loadout.equipment.includes('fieldWorkshop')?.48:.35));player.track=player.engine=0;$('repair').disabled=player.repairs<=0;notify('РЕМОНТНЫЙ КОМПЛЕКТ ПРИМЕНЁН');sound('ui')}
 function setZoom(){if(state!=='battle')return;zoom=(zoom+1)%4;$('scope').hidden=zoom===0;$('aim').innerHTML=`⊕<small>${zoom?['','2×','4×','6×'][zoom]:'ПРИЦЕЛ'}</small>`;sound('ui')}
-function changeAmmo(){if(!player)return;player.ammo=(player.ammo+1)%3;$('ammo').innerHTML=['AP','APCR','HE'][player.ammo]+'<small>СНАРЯД</small>';sound('ui')}
-function end(win){state='result';resetInput();save.stats.battles++;save.stats.wins+=+win;save.stats.kills+=kills;const reward=earned+(win?700:220)+(mode==='survival'?(wave-1)*250:0);save.credits+=reward;const oldLevel=rankFor(save.xp||0);const gainedXP=90+kills*65+(win?220:0)+(mode==='survival'?(wave-1)*70:0);save.xp=(save.xp||0)+gainedXP;const newLevel=rankFor(save.xp);persist();document.exitPointerLock?.();$('overlay').hidden=false;$('overlay').innerHTML=`<div class="dialog"><div class="eyebrow">ОПЕРАЦИЯ ЗАВЕРШЕНА</div><h2>${win?'ПОБЕДА':'ТАНК УНИЧТОЖЕН'}</h2><p>${MAP_NAMES[mapIndex]} · ${Math.floor(elapsed/60)}:${String(Math.floor(elapsed%60)).padStart(2,'0')}</p><h2>+${reward} ◈ · +${gainedXP} XP</h2>${newLevel>oldLevel?`<div class="levelUp">${RANK_ICONS[newLevel-1]} НОВЫЙ УРОВЕНЬ ${newLevel} · ${RANKS[newLevel-1]}</div>`:""}<p>Уничтожено: ${kills} ${mode==='survival'?'· Волна: '+wave:''}</p><button id="again" class="primary">Ещё один бой</button><button id="backGarage">В гараж</button></div>`;$('again').onclick=startBattle;$('backGarage').onclick=garage}
+function changeAmmo(){if(!player)return;player.ammo=(player.ammo+1)%AMMO_NAMES.length;$('ammo').innerHTML=AMMO_NAMES[player.ammo]+'<small>СНАРЯД</small>';sound('ui')}
+function todayContract(){const day=new Date().toISOString().slice(0,10);if(save.contract?.day!==day)save.contract={day,kills:0,wins:0,claimed:false};return save.contract}
+function contractUI(){
+ const c=todayContract();let box=$('contractInfo');
+ if(!box){box=document.createElement('div');box.id='contractInfo';box.style.cssText='margin-top:12px;padding:9px;border-radius:8px;border:1px solid #8a8f6a;background:#202d26e8;font:600 11px system-ui';$('spec').appendChild(box)}
+ const ready=c.kills>=5&&c.wins>=1;
+ box.innerHTML='<b>◈ ЕЖЕДНЕВНЫЙ КОНТРАКТ</b><br>Уничтожь 5 врагов ('+Math.min(5,c.kills)+'/5) и победи ('+Math.min(1,c.wins)+'/1)<br><button id="claimContract" style="margin-top:5px;padding:6px" '+(!ready||c.claimed?'disabled':'')+'>'+(c.claimed?'НАГРАДА ПОЛУЧЕНА':'ЗАБРАТЬ +650 ◈')+'</button>';
+ $('claimContract').onclick=()=>{if(c.kills<5||c.wins<1||c.claimed)return;c.claimed=true;save.credits+=650;persist();garageUI();notify('КОНТРАКТ ВЫПОЛНЕН · +650 ◈')};
+}
+function ensureSmokeButton(){
+ let b=$('smokeBtn');if(!b){b=document.createElement('button');b.id='smokeBtn';b.style.cssText='position:fixed;right:10px;top:39%;z-index:28;background:#304455dd;color:white;border:1px solid #89a1a8;border-radius:10px;font:bold 12px system-ui;padding:8px';$('hud').appendChild(b);b.onclick=deploySmoke}
+ b.hidden=!smokeCharges;b.textContent='☁ ДЫМ ×'+smokeCharges;
+}
+function deploySmoke(){
+ if(state!=='battle'||smokeCharges<1||player.dead)return;
+ smokeCharges--;smokeUntil=gameTime+9;smokeOrigin={x:player.x,z:player.z};
+ for(let i=0;i<22;i++){const a=i*2.3999,d=2+Math.sqrt(i)*1.5;effect(new T.Vector3(player.x+Math.cos(a)*d,terrain(player.x,player.z)+.6,player.z+Math.sin(a)*d),'smoke',2)}
+ ensureSmokeButton();notify('ДЫМОВАЯ ЗАВЕСА · ПРИЦЕЛ ПРОТИВНИКА СБИТ');
+}
+function end(win){
+ state='result';resetInput();if($('smokeBtn'))$('smokeBtn').hidden=true;
+ save.stats.battles++;save.stats.wins+=+win;save.stats.kills+=kills;
+ const contract=todayContract();contract.kills+=kills;contract.wins+=+win;
+ const base=win?700:220,survivalBonus=mode==='survival'?(wave-1)*250:0,damageBonus=Math.round(battleDamage*.085);
+ const gross=earned+base+survivalBonus+damageBonus;
+ const repairCost=damageService,maintenance=Math.round((1-Math.max(0,player.hp)/player.maxHp)*130);
+ const serviceCost=Math.round(ammoService+repairCost+maintenance);
+ const reward=Math.max(100,gross-serviceCost);
+ save.credits+=reward;const oldLevel=rankFor(save.xp||0);
+ const gainedXP=90+kills*65+(win?220:0)+(mode==='survival'?(wave-1)*70:0)+Math.round(battleDamage*.04);
+ save.xp=(save.xp||0)+gainedXP;const newLevel=rankFor(save.xp);persist();
+ document.exitPointerLock?.();$('overlay').hidden=false;
+ $('overlay').innerHTML=`<div class="dialog"><div class="eyebrow">ОПЕРАЦИЯ ЗАВЕРШЕНА</div><h2>${win?'ПОБЕДА':'ТАНК УНИЧТОЖЕН'}</h2><p>${MAP_NAMES[mapIndex]} · ${Math.floor(elapsed/60)}:${String(Math.floor(elapsed%60)).padStart(2,'0')}</p><p>Бой: ${gross} ◈ · Снаряды, ремонт и обслуживание: −${serviceCost} ◈</p><h2>+${reward} ◈ · +${gainedXP} XP</h2>${newLevel>oldLevel?`<div class="levelUp">${RANK_ICONS[newLevel-1]} НОВЫЙ УРОВЕНЬ ${newLevel} · ${RANKS[newLevel-1]}</div>`:""}<p>Уничтожено: ${kills} · Нанесено урона: ${Math.round(battleDamage)} ${mode==='survival'?'· Волна: '+wave:''}</p><button id="again" class="primary">Ещё один бой</button><button id="backGarage">В гараж</button></div>`;
+ $('again').onclick=startBattle;$('backGarage').onclick=garage;
+}
 function pause(){if(state==='battle'){state='paused';resetInput();document.exitPointerLock?.();$('overlay').hidden=false;$('overlay').innerHTML='<div class="dialog"><div class="eyebrow">ОПЕРАЦИЯ ПРИОСТАНОВЛЕНА</div><h2>Пауза</h2><button id="resume" class="primary">Продолжить</button><button id="pauseSettings">Настройки</button><button id="exitBattle">Завершить бой</button></div>';$('resume').onclick=pause;$('pauseSettings').onclick=openSettings;$('exitBattle').onclick=()=>end(false)}else if(state==='paused'){state='battle';$('overlay').hidden=true}}
-function hud(){const p=player;$('mgInfo').textContent=`КП-12.7  ${p.mg.belt} / ${p.mg.reserve} · ${p.mg.reloading>0?'ЛЕНТА '+p.mg.reloading.toFixed(1)+'с':p.mg.overheated?'ПЕРЕГРЕВ':Math.round(p.mg.heat)+'°'}`;$('mgHeat').style.width=p.mg.heat+'%';$('mg').classList.toggle('hot',p.mg.overheated);$('repair').innerHTML='＋<small>РЕМОНТ ×'+p.repairs+'</small>';const direction=new T.Vector3(Math.sin(p.turretYaw)*Math.cos(p.pitch),Math.sin(p.pitch),Math.cos(p.turretYaw)*Math.cos(p.pitch));const bore=new T.Vector3(p.x,terrain(p.x,p.z)+2.1,p.z).addScaledVector(direction,60).project(camera);$('bore').style.left=(bore.x*.5+.5)*100+'%';$('bore').style.top=(-bore.y*.5+.5)*100+'%';$('bore').style.opacity=Math.abs(angle(p.turretYaw-aimYaw))<1?'1':'0';$('hp').textContent=`${Math.ceil(p.hp)} / ${Math.round(p.maxHp)}`;$('hpbar').style.width=p.hp/p.maxHp*100+'%';$('modules').textContent=[p.track?'ГУСЕНИЦА ⚠':'',p.engine?'ДВИГАТЕЛЬ ⚠':''].join(' ');$('speed').textContent=Math.round(Math.abs(p.speed)*3.6)+' км/ч';$('reload').textContent=p.cool>0?'ПЕРЕЗАРЯДКА '+p.cool.toFixed(1)+'с':'ОРУДИЕ ГОТОВО';$('ammoInfo').textContent=['AP','APCR','HE'][p.ammo]+' · '+p.rounds[p.ammo];$('fire').style.background=`conic-gradient(#c9df7a66 ${100*(1-p.cool/p.reload)}%,#19291d99 0)`;const allies=tanks.filter(t=>t.team===0&&!t.dead).length,enemies=tanks.filter(t=>t.team===1&&!t.dead).length;$('score').textContent=`${allies} СОЮЗНИКИ  /  ${enemies} ПРОТИВНИКИ${mode==='survival'?' · ВОЛНА '+wave:mode==='flag'?' · 🚩 '+(flagCarrier?(flagCarrier.isPlayer?'ТВОЙ ФЛАГ':'ФЛАГ ВРАГА'):'ФЛАГ СВОБОДЕН')+' · '+Math.ceil(flagTimer)+'с':''}`;const c=$('mini').getContext('2d');c.clearRect(0,0,180,180);c.fillStyle='#52604b';obstacles.forEach(o=>c.fillRect(90+o.x*.6-o.r*.6,90-o.z*.6-o.r*.6,o.r*1.2,o.r*1.2));tanks.forEach(t=>{if(t.dead)return;c.fillStyle=t.isPlayer?'#ffffff':t.team?'#ee8768':'#d4f070';c.beginPath();c.arc(90+t.x*.6,90-t.z*.6,t.isPlayer?4:3,0,7);c.fill()});c.strokeStyle='#fff';c.beginPath();c.moveTo(90+p.x*.6,90-p.z*.6);c.lineTo(90+p.x*.6+Math.sin(aimYaw)*15,90-p.z*.6-Math.cos(aimYaw)*15);c.stroke()}
-function applySettings(){const s=save.settings;document.documentElement.style.setProperty('--size',s.size);document.documentElement.style.setProperty('--opacity',s.opacity);renderer.shadowMap.enabled=s.quality!=='low';const shadowSize=s.quality==='high'?2048:1024;if(sun.shadow.mapSize.x!==shadowSize){sun.shadow.mapSize.set(shadowSize,shadowSize);sun.shadow.map?.dispose();sun.shadow.map=null}renderer.setPixelRatio(Math.min(devicePixelRatio,s.quality==='high'?2:s.quality==='medium'?1.3:.8));for(const [id,p]of Object.entries(s.layout||{})){if($(id))Object.assign($(id).style,{left:p.x+'%',top:p.y+'%',right:'auto',bottom:'auto'})}persist()}
+function hud(){const p=player;$('mgInfo').textContent=`КП-12.7  ${p.mg.belt} / ${p.mg.reserve} · ${p.mg.reloading>0?'ЛЕНТА '+p.mg.reloading.toFixed(1)+'с':p.mg.overheated?'ПЕРЕГРЕВ':Math.round(p.mg.heat)+'°'}`;$('mgHeat').style.width=p.mg.heat+'%';$('mg').classList.toggle('hot',p.mg.overheated);$('repair').innerHTML='＋<small>РЕМОНТ ×'+p.repairs+'</small>';const direction=new T.Vector3(Math.sin(p.turretYaw)*Math.cos(p.pitch),Math.sin(p.pitch),Math.cos(p.turretYaw)*Math.cos(p.pitch));const bore=new T.Vector3(p.x,terrain(p.x,p.z)+2.1,p.z).addScaledVector(direction,60).project(camera);$('bore').style.left=(bore.x*.5+.5)*100+'%';$('bore').style.top=(-bore.y*.5+.5)*100+'%';$('bore').style.opacity=Math.abs(angle(p.turretYaw-aimYaw))<1?'1':'0';$('hp').textContent=`${Math.ceil(p.hp)} / ${Math.round(p.maxHp)}`;$('hpbar').style.width=p.hp/p.maxHp*100+'%';$('modules').textContent=[p.track?'ГУСЕНИЦА ⚠':'',p.engine?'ДВИГАТЕЛЬ ⚠':''].join(' ');$('speed').textContent=Math.round(Math.abs(p.speed)*3.6)+' км/ч';$('reload').textContent=p.cool>0?'ПЕРЕЗАРЯДКА '+p.cool.toFixed(1)+'с':'ОРУДИЕ ГОТОВО';$('ammoInfo').textContent=AMMO_NAMES[p.ammo]+' · '+p.rounds[p.ammo];$('fire').style.background=`conic-gradient(#c9df7a66 ${100*(1-p.cool/p.reload)}%,#19291d99 0)`;const allies=tanks.filter(t=>t.team===0&&!t.dead).length,enemies=tanks.filter(t=>t.team===1&&!t.dead).length;$('score').textContent=`${allies} СОЮЗНИКИ  /  ${enemies} ПРОТИВНИКИ${mode==='survival'?' · ВОЛНА '+wave:mode==='flag'?' · 🚩 '+(flagCarrier?(flagCarrier.isPlayer?'ТВОЙ ФЛАГ':'ФЛАГ ВРАГА'):'ФЛАГ СВОБОДЕН')+' · '+Math.ceil(flagTimer)+'с':''}`;const c=$('mini').getContext('2d');c.clearRect(0,0,180,180);c.fillStyle='#52604b';obstacles.forEach(o=>c.fillRect(90+o.x*.6-o.r*.6,90-o.z*.6-o.r*.6,o.r*1.2,o.r*1.2));tanks.forEach(t=>{if(t.dead)return;c.fillStyle=t.isPlayer?'#ffffff':t.team?'#ee8768':'#d4f070';c.beginPath();c.arc(90+t.x*.6,90-t.z*.6,t.isPlayer?4:3,0,7);c.fill()});c.strokeStyle='#fff';c.beginPath();c.moveTo(90+p.x*.6,90-p.z*.6);c.lineTo(90+p.x*.6+Math.sin(aimYaw)*15,90-p.z*.6-Math.cos(aimYaw)*15);c.stroke()}
+function applySettings(){const s=save.settings;document.documentElement.style.setProperty('--size',s.size);document.documentElement.style.setProperty('--opacity',s.opacity);renderer.shadowMap.enabled=s.quality!=='low';const shadowSize=s.quality==='high'&&!mobile?2048:1024;if(sun.shadow.mapSize.x!==shadowSize){sun.shadow.mapSize.set(shadowSize,shadowSize);sun.shadow.map?.dispose();sun.shadow.map=null}renderer.setPixelRatio(Math.min(devicePixelRatio,(mobile?s.quality==='high'?1.25:s.quality==='medium'?1:.75:s.quality==='high'?1.75:s.quality==='medium'?1.35:.85))*adaptive);for(const [id,p]of Object.entries(s.layout||{})){if($(id))Object.assign($(id).style,{left:p.x+'%',top:p.y+'%',right:'auto',bottom:'auto'})}persist()}
 function openSettings(){if(state==='battle')pause();$('settings').hidden=false;const s=save.settings;$('settingsFields').innerHTML=`${[['sensitivity','Чувствительность обзора',.3,2.5,.1],['aimSensitivity','Чувствительность прицела',.2,1.5,.05],['deadzone','Мёртвая зона джойстика',.02,.25,.01],['smoothing','Скорость камеры',4,20,1],['size','Размер управления',.7,1.5,.05],['opacity','Прозрачность',.25,1,.05]].map(([k,n,a,b,step])=>`<label>${n}<input data-setting="${k}" type="range" min="${a}" max="${b}" step="${step}" value="${s[k]}"></label>`).join('')}${[['assist','Помощь в прицеливании'],['invert','Инверсия вертикальной оси'],['invertJoystick','Инверсия поворота джойстика (лево / право)'],['sound','Звуки и музыка']].map(([k,n])=>`<label>${n}<input data-setting="${k}" type="checkbox" ${s[k]?'checked':''}></label>`).join('')}<label>Графика<select data-setting="quality"><option value="low">Низкая</option><option value="medium">Средняя</option><option value="high">Высокая</option></select></label>`;document.querySelector('[data-setting="quality"]').value=s.quality;document.querySelectorAll('[data-setting]').forEach(el=>el.oninput=()=>{s[el.dataset.setting]=el.type==='checkbox'?el.checked:el.type==='range'?+el.value:el.value;applySettings()})}
 $('settingsOpen').onclick=openSettings;$('settingsClose').onclick=()=>{$('settings').hidden=true};$('layout').onclick=()=>{editing=true;$('settings').hidden=true;$('overlay').hidden=true;$('garage').hidden=true;$('hud').hidden=false;$('layoutDone').hidden=false;document.body.classList.remove('desktop')};$('layoutDone').onclick=e=>{if(e.target.tagName!=='BUTTON')return;editing=false;persist();$('layoutDone').hidden=true;document.body.classList.toggle('desktop',!mobile);if(state==='garage'){$('garage').hidden=false;$('hud').hidden=true}else if(state==='paused'){$('overlay').hidden=false}openSettings()};$('resetLayout').onclick=()=>{save.settings.layout={};document.querySelectorAll('.control').forEach(e=>{e.style.left=e.style.right=e.style.top=e.style.bottom=''});applySettings()};$('start').onclick=startBattle;$('pause').onclick=pause;$('repair').onclick=repair;$('aim').onclick=setZoom;$('ammo').onclick=changeAmmo;$('lock').onclick=()=>{if(editing)return;autoLock=!autoLock;$('lock').style.color=autoLock?'#e5fa72':'';notify(autoLock?'ЗАХВАТ ВКЛЮЧЁН':'ЗАХВАТ ОТКЛЮЧЁН')};$('mini').onclick=()=>{$('mini').style.width=$('mini').style.width?'':'240px';$('mini').style.height=$('mini').style.height?'':'240px'};
 function resetInput(){Object.keys(keys).forEach(k=>delete keys[k]);joy.x=joy.y=0;fireHeld=false;mgHeld=false;drag=null;joyPointer=null;cameraPointers.clear();pointers.clear();$('stick').style.transform=''}window.addEventListener('blur',()=>{resetInput();if(state==='battle')pause()});document.addEventListener('visibilitychange',()=>{if(document.hidden){resetInput();if(state==='battle')pause()}});
@@ -643,7 +820,8 @@ let last=performance.now(),fpsAccum=0,frames=0,adaptive=1;const pixelCap=Math.mi
  camera.position.set(tourCenter.x+Math.sin(tourYaw)*cp*tourDistance,tourCenter.y+Math.sin(tourPitch)*tourDistance,tourCenter.z+Math.cos(tourYaw)*cp*tourDistance);
  camera.lookAt(tourCenter);camera.fov=55;camera.updateProjectionMatrix();
  sun.position.set(-45,70,35);sun.target.position.set(0,0,0);
- }else if(state==='garage'){const a=garageYaw+Math.sin(gameTime*.12)*.05;camera.position.set(Math.sin(a)*12,6.2,Math.cos(a)*12);camera.lookAt(0,1,0);camera.fov=55;camera.updateProjectionMatrix();preview.root.rotation.y=.3}else if(player){if(state==='battle'&&!editing){elapsed+=dt;tanks.forEach(t=>updateTank(t,dt));updateShots(dt);updateEffects(dt);if(mode==='flag')updateFlag(dt);if(state==='battle'&&player.dead)end(false);else if(state==='battle'&&!tanks.some(t=>t.team===1&&!t.dead)){if(mode==='flag'){end(true)}else if(mode==='survival'){wave++;player.hp=Math.min(player.maxHp,player.hp+player.maxHp*.2);player.rounds=player.rounds.map((n,i)=>n+[20,7,5][i]);spawnWave()}else end(true)}hud();musicTime+=dt;if(musicTime>4){musicTime=0;sound('music')}}viewYaw+=angle(aimYaw-viewYaw)*(1-Math.exp(-dt*save.settings.smoothing));viewPitch=damp(viewPitch,aimPitch,save.settings.smoothing,dt);const base=new T.Vector3(player.x,terrain(player.x,player.z)+2.2,player.z),dir=new T.Vector3(Math.sin(viewYaw)*Math.cos(viewPitch),Math.sin(viewPitch),Math.cos(viewYaw)*Math.cos(viewPitch));if(zoom){desiredPos.copy(base).addScaledVector(dir,4.8);camera.position.copy(desiredPos);look.copy(base).addScaledVector(dir,160)}else{desiredPos.copy(base).addScaledVector(dir,-12);desiredPos.y+=5;camera.position.lerp(desiredPos,1-Math.exp(-dt*7));look.copy(base).addScaledVector(dir,60)}camera.lookAt(look);camera.fov=zoom?[55,30,17,10][zoom]:55;camera.updateProjectionMatrix();player.root.visible=!zoom;sun.position.set(player.x-45,70,player.z+35);sun.target.position.set(player.x,0,player.z)}if(engineGain){engineGain.gain.setTargetAtTime(state==='battle'&&save.settings.sound?.018:0,audio.currentTime,.1);engineOsc.frequency.setTargetAtTime(35+Math.abs(player?.speed||0)*3,audio.currentTime,.1)}sky.position.copy(camera.position);renderer.render(scene,camera);fpsAccum+=dt;frames++;if(fpsAccum>3){const fps=frames/fpsAccum;if((state==='battle'||state==='tour')&&fps<29&&adaptive>.6){adaptive=Math.max(.6,adaptive-.1);renderer.setPixelRatio(pixelCap*adaptive)}else if((state==='battle'||state==='tour')&&fps>53&&adaptive<1){adaptive=Math.min(1,adaptive+.05);renderer.setPixelRatio(pixelCap*adaptive)}window.STEEL_METRICS={fps:Math.round(fps),drawCalls:renderer.info.render.calls,triangles:renderer.info.render.triangles,tanks:tanks.length,particles:particles.length,state};fpsAccum=0;frames=0}}
+ }else if(state==='garage'){const a=garageYaw+Math.sin(gameTime*.12)*.05;camera.position.set(Math.sin(a)*12,6.2,Math.cos(a)*12);camera.lookAt(0,1,0);camera.fov=55;camera.updateProjectionMatrix();preview.root.rotation.y=.3}else if(player){if(state==='battle'&&!editing){elapsed+=dt;tanks.forEach(t=>updateTank(t,dt));updateShots(dt);updateEffects(dt);if(smokeUntil>gameTime&&Math.random()<dt*12){const a=Math.random()*6.283,d=Math.sqrt(Math.random())*12;effect(new T.Vector3(smokeOrigin.x+Math.cos(a)*d,terrain(smokeOrigin.x,smokeOrigin.z)+.8,smokeOrigin.z+Math.sin(a)*d),'smoke',1)}if(mode==='flag')updateFlag(dt);if(state==='battle'&&player.dead)end(false);else if(state==='battle'&&!tanks.some(t=>t.team===1&&!t.dead)){if(mode==='flag'){end(true)}else if(mode==='survival'){wave++;player.hp=Math.min(player.maxHp,player.hp+player.maxHp*.2);player.rounds=player.rounds.map((n,i)=>n+[20,7,5,3,2][i]);spawnWave()}else end(true)}hud();musicTime+=dt;if(musicTime>4){musicTime=0;sound('music')}}viewYaw+=angle(aimYaw-viewYaw)*(1-Math.exp(-dt*save.settings.smoothing));viewPitch=damp(viewPitch,aimPitch,save.settings.smoothing,dt);const base=new T.Vector3(player.x,terrain(player.x,player.z)+2.2,player.z),dir=new T.Vector3(Math.sin(viewYaw)*Math.cos(viewPitch),Math.sin(viewPitch),Math.cos(viewYaw)*Math.cos(viewPitch));if(zoom){desiredPos.copy(base).addScaledVector(dir,4.8);camera.position.copy(desiredPos);look.copy(base).addScaledVector(dir,160)}else{desiredPos.copy(base).addScaledVector(dir,-12);desiredPos.y+=5;camera.position.lerp(desiredPos,1-Math.exp(-dt*7));look.copy(base).addScaledVector(dir,60)}camera.lookAt(look);camera.fov=zoom?[55,30,17,10][zoom]:55;camera.updateProjectionMatrix();player.root.visible=!zoom;sun.position.set(player.x-45,70,player.z+35);sun.target.position.set(player.x,0,player.z)}if(engineGain){engineGain.gain.setTargetAtTime(state==='battle'&&save.settings.sound?.018:0,audio.currentTime,.1);engineOsc.frequency.setTargetAtTime(35+Math.abs(player?.speed||0)*3,audio.currentTime,.1)}if(hazardMaterial.cache)for(const material of Object.values(hazardMaterial.cache))material.uniforms.uTime.value=gameTime;
+ sky.position.copy(camera.position);renderer.render(scene,camera);fpsAccum+=dt;frames++;if(fpsAccum>3){const fps=frames/fpsAccum;if((state==='battle'||state==='tour')&&fps<29&&adaptive>.6){adaptive=Math.max(.6,adaptive-.1);renderer.setPixelRatio(pixelCap*adaptive)}else if((state==='battle'||state==='tour')&&fps>53&&adaptive<1){adaptive=Math.min(1,adaptive+.05);renderer.setPixelRatio(pixelCap*adaptive)}window.STEEL_METRICS={fps:Math.round(fps),drawCalls:renderer.info.render.calls,triangles:renderer.info.render.triangles,tanks:tanks.length,particles:particles.length,state};fpsAccum=0;frames=0}}
 
 
 function initFlag(){flagCarrier=null;flagTimer=0;flagTransferCooldown=0;if(flagMesh){world.remove(flagMesh);flagMesh=null}flagMesh=new T.Group();const pole=mesh('box',0xe5e3cb,0,2,0,.14,4,.14,flagMesh);const cloth=mesh('box',0xffc439,.75,3.65,0,1.5,.85,.1,flagMesh);cloth.material=mat(0xffc439);flagMesh.position.set(0,terrain(0,0),0);world.add(flagMesh)}
@@ -651,16 +829,15 @@ function updateFlag(dt){if(state!=='battle'||mode!=='flag')return;flagTransferCo
 
 function destroyTank(t,owner){if(t.dead)return;if(mode==='flag'&&flagCarrier===t){flagCarrier=null;flagTimer=0;notify('ФЛАГ ПОТЕРЯН!')} t.hp=0;t.dead=true;t.speed=0;effect(t.root.position.clone().add(new T.Vector3(0,2,0)),'boom',24);sound('boom');if(owner.isPlayer){kills++;earned+=160;notify('ЦЕЛЬ УНИЧТОЖЕНА · +160 ◈')}t.root.traverse(o=>{if(o.isMesh)o.material=mat(0x30352d)});t.turret.rotation.z=.12}
 function fireMG(t){if(state!=='battle'||t.dead)return false;if(!consumeMGShot(t.mg,t.isPlayer&&save.loadout.equipment.includes('cooler')))return false;const yaw=t.turretYaw+(Math.random()-.5)*.012,pitch=t.pitch+(Math.random()-.5)*.009,dir=new T.Vector3(Math.sin(yaw)*Math.cos(pitch),Math.sin(pitch),Math.cos(yaw)*Math.cos(pitch));t.root.updateMatrixWorld(true);const origin=t.mgMount.localToWorld(new T.Vector3(0,0,1.65));const target=new T.Vector3(t.x,terrain(t.x,t.z)+2.1,t.z).addScaledVector(dir,60);dir.copy(target.sub(origin).normalize());const tracer=mesh('sphere',0xffd182,origin.x,origin.y,origin.z,.035,.035,1.4);tracer.quaternion.setFromUnitVectors(new T.Vector3(0,0,1),dir);shots.push({m:tracer,p:origin,prev:origin.clone(),v:dir.multiplyScalar(175),owner:t,life:1.1,ammo:0,kind:'mg'});effect(origin,'spark',2);sound('mg');return true}
-function impactMG(s,t){const incoming=new T.Vector3(s.v.x,0,s.v.z).normalize(),forward=new T.Vector3(Math.sin(t.yaw),0,Math.cos(t.yaw));const rear=incoming.dot(forward)>.55,damage=mgDamage(t.armor,rear);t.hp-=damage;if(damage>0&&Math.random()<.13)t.track=Math.max(t.track,2);effect(s.p,'spark',3);if(s.owner.isPlayer){$('hit').textContent=damage?`КП-12.7 · −${damage}`:'КП-12.7 · БРОНЯ';clearTimeout(mgHitTimer);mgHitTimer=setTimeout(()=>$('hit').textContent='',450)}if(t.hp<=0)destroyTank(t,s.owner)}
+function impactMG(s,t){const incoming=new T.Vector3(s.v.x,0,s.v.z).normalize(),forward=new T.Vector3(Math.sin(t.yaw),0,Math.cos(t.yaw));const rear=incoming.dot(forward)>.55,damage=mgDamage(t.armor,rear);t.hp-=damage;if(damage>0&&Math.random()<.13)t.track=Math.max(t.track,2);if(s.owner.isPlayer)battleDamage+=Math.min(Math.max(t.hp,0),damage);effect(s.p,'spark',3);if(s.owner.isPlayer){$('hit').textContent=damage?`КП-12.7 · −${damage}`:'КП-12.7 · БРОНЯ';clearTimeout(mgHitTimer);mgHitTimer=setTimeout(()=>$('hit').textContent='',450)}if(t.hp<=0)destroyTank(t,s.owner)}
 let mgHitTimer,shopTab='equipment';
 function refreshPaint(){if(state==='garage'){world.remove(preview.root);preview.root.traverse(o=>{if(o.userData.ownedGeometry)o.geometry.dispose()});preview=model(selected);world.add(preview.root)}}
 function shop(){if(state!=='garage')return;$('shop').hidden=false;renderShop()}
-function renderShop(){const tabs=[['equipment','Оборудование'],['supplies','Снабжение'],['paint','Камуфляж']];$('shopTabs').innerHTML=tabs.map(([id,name])=>`<button data-category="${id}" class="${shopTab===id?'selected':''}">${name}</button>`).join('');$('shopBalance').textContent=save.credits+' ◈';$('loadoutSummary').textContent=`Оборудование ${save.loadout.equipment.length}/2 · Снабжение ${save.loadout.supplies.length}/2 · Выбранное снабжение расходуется при начале боя`;
+function renderShop(){const tabs=[['equipment','Оборудование'],['supplies','Снабжение'],['paint','Камуфляж']];$('shopTabs').innerHTML=tabs.map(([id,name])=>`<button data-category="${id}" class="${shopTab===id?'selected':''}">${name}</button>`).join('');$('shopBalance').textContent=save.credits+' ◈';$('loadoutSummary').textContent=`Оборудование ${save.loadout.equipment.length}/3 · Снабжение ${save.loadout.supplies.length}/2 · Выбранное снабжение расходуется при начале боя`;
 $('shopItems').innerHTML=PRODUCTS.filter(p=>p.category===shopTab).map(p=>{const owned=p.category==='equipment'?save.equipment.includes(p.id):p.category==='paint'?save.paints.includes(p.id):(save.inventory[p.id]||0)>0;const active=p.category==='paint'?save.loadout.paint===p.id:save.loadout[p.category].includes(p.id);return `<article class="shopItem"><div class="productIcon">${p.category==='equipment'?'⚙':p.category==='paint'?'◈':'▤'}</div><div><h3>${p.name}</h3><p>${p.description}</p><small>${p.category==='supplies'?'На складе: '+(save.inventory[p.id]||0):owned?'В собственности':'Постоянная покупка'}</small></div><div class="shopActions">${!owned||p.category==='supplies'?`<button data-buy="${p.id}" ${save.credits<p.price?'disabled':''}>Купить · ${p.price} ◈</button>`:''}${owned?`<button data-equip="${p.id}" class="${active?'selected':''}">${active?(p.category==='paint'?'Выбрано':'Снять'):(p.category==='paint'?'Нанести':'Установить')}</button>`:''}</div></article>`}).join('');
 if(shopTab==='paint')$('shopItems').innerHTML+='<button id="factoryPaint">Заводская окраска · бесплатно</button>';
 document.querySelectorAll('[data-category]').forEach(b=>b.onclick=()=>{shopTab=b.dataset.category;renderShop()});document.querySelectorAll('[data-buy]').forEach(b=>b.onclick=()=>{const error=purchase(save,b.dataset.buy);$('shopMessage').textContent=error||'Покупка поступила на склад';persist();garageUI();renderShop();sound('ui')});document.querySelectorAll('[data-equip]').forEach(b=>b.onclick=()=>{const error=equip(save,b.dataset.equip);$('shopMessage').textContent=error||'Оснащение обновлено';persist();refreshPaint();renderShop()});if($('factoryPaint'))$('factoryPaint').onclick=()=>{save.loadout.paint='factory';persist();refreshPaint();renderShop()}}
 $('shopOpen').onclick=shop;$('shopClose').onclick=()=>{$('shop').hidden=true};
 
 applySettings();garage();requestAnimationFrame(frame);if(typeof location!=='undefined'&&location.protocol!=='file:'&&'serviceWorker'in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>{});
-
 </script></body></html>

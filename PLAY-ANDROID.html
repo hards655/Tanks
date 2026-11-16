@@ -54,7 +54,8 @@ const PRODUCTS=[
  {id:'overdrive',name:'Усиленное топливо',category:'supplies',price:140,description:'+12% скорости в следующем бою.'},
  {id:'forest',name:'Лесной камуфляж',category:'paint',price:450,description:'Трёхцветная окраска. Только внешний вид.'},
  {id:'desert',name:'Пустынный камуфляж',category:'paint',price:450,description:'Песочная окраска. Только внешний вид.'},
- {id:'winter',name:'Зимний камуфляж',category:'paint',price:450,description:'Светлая полевая окраска. Только внешний вид.'}
+ {id:'winter',name:'Зимний камуфляж',category:'paint',price:450,description:'Светлая полевая окраска. Только внешний вид.'},
+ {id:'admin_ua',name:'Админский: Сине-жёлтый Трезубец',category:'paint',price:0,description:'Сине-жёлтая окраска с гербом-трезубцем. Бесплатный декоративный скин.'}
 ];
 function migrateProfile(s){s.inventory??={};s.equipment??=[];s.paints??=['factory'];s.loadout??={equipment:[],supplies:[],paint:'factory'};return s}
 function purchase(s,id){const p=PRODUCTS.find(p=>p.id===id);if(!p)return 'Товар не найден';if(p.category==='equipment'&&s.equipment.includes(id)||p.category==='paint'&&s.paints.includes(id))return 'Уже приобретено';if(s.credits<p.price)return 'Недостаточно кредитов';if(p.category==='supplies'&&(s.inventory[id]||0)>=10)return 'На складе уже 10';s.credits-=p.price;if(p.category==='equipment')s.equipment.push(id);else if(p.category==='paint')s.paints.push(id);else s.inventory[id]=(s.inventory[id]||0)+1;return null}
@@ -69,9 +70,10 @@ function mgDamage(armor,rear){return armor<=60?11:rear?4:0}
 
 function bevelBox(){const s=new T.Shape();s.moveTo(-.46,-.46);s.lineTo(.46,-.46);s.lineTo(.46,.46);s.lineTo(-.46,.46);s.closePath();const g=new T.ExtrudeGeometry(s,{depth:.92,bevelEnabled:true,bevelThickness:.04,bevelSize:.04,bevelSegments:3,steps:1,curveSegments:1});g.translate(0,0,-.46);return g}
 const paintCache=new Map();
-function armorMaterial(base,scheme='factory') {const key=base+scheme;if(paintCache.has(key))return paintCache.get(key);const n=256,data=new Uint8Array(n*n*4),relief=new Uint8Array(n*n*4);const palettes={factory:[base,base,0x333c30],forest:[0x536347,0x383f30,0x8b8365],desert:[0xa79a74,0x7b7051,0xccc1a0],winter:[0xc4cbc4,0x687c75,0xe0e3db]};const palette=(palettes[scheme]||palettes.factory).map(c=>new T.Color(c).convertLinearToSRGB());let seed=731;for(let y=0;y<n;y++)for(let x=0;x<n;x++){seed=(seed*1664525+1013904223)>>>0;const noise=seed/4294967296,f=Math.sin(x*.043+Math.sin(y*.034)*2)+Math.cos(y*.057+Math.sin(x*.029)*2),color=palette[scheme==='factory'?0:f>.6?0:f<-.5?1:2],i=(y*n+x)*4;const scratch=(y%47===0&&noise>.88)?.55:.85+noise*.25;data[i]=color.r*255*scratch;data[i+1]=color.g*255*scratch;data[i+2]=color.b*255*scratch;data[i+3]=255;relief[i]=relief[i+1]=relief[i+2]=100+noise*80;relief[i+3]=255}const map=new T.DataTexture(data,n,n),bump=new T.DataTexture(relief,n,n);for(const t of [map,bump]){t.wrapS=t.wrapT=T.RepeatWrapping;t.magFilter=T.LinearFilter;t.minFilter=T.LinearMipmapLinearFilter;t.generateMipmaps=true;t.needsUpdate=true}map.colorSpace=T.SRGBColorSpace;const material=new T.MeshStandardMaterial({map,bumpMap:bump,bumpScale:.035,roughness:.69,metalness:.4});paintCache.set(key,material);return material}
+function armorMaterial(base,scheme='factory') {const key=base+scheme;if(paintCache.has(key))return paintCache.get(key);const n=256,data=new Uint8Array(n*n*4),relief=new Uint8Array(n*n*4);const palettes={factory:[base,base,0x333c30],forest:[0x536347,0x383f30,0x8b8365],desert:[0xa79a74,0x7b7051,0xccc1a0],winter:[0xc4cbc4,0x687c75,0xe0e3db],admin_ua:[0x1765bd,0xf4cf35,0x1765bd]};const palette=(palettes[scheme]||palettes.factory).map(c=>new T.Color(c).convertLinearToSRGB());let seed=731;for(let y=0;y<n;y++)for(let x=0;x<n;x++){seed=(seed*1664525+1013904223)>>>0;const noise=seed/4294967296,f=Math.sin(x*.043+Math.sin(y*.034)*2)+Math.cos(y*.057+Math.sin(x*.029)*2),color=palette[scheme==='factory'?0:scheme==='admin_ua'?(y<n*.5?0:1):f>.6?0:f<-.5?1:2],i=(y*n+x)*4;const scratch=(y%47===0&&noise>.88)?.55:.85+noise*.25;data[i]=color.r*255*scratch;data[i+1]=color.g*255*scratch;data[i+2]=color.b*255*scratch;data[i+3]=255;relief[i]=relief[i+1]=relief[i+2]=100+noise*80;relief[i+3]=255}const map=new T.DataTexture(data,n,n),bump=new T.DataTexture(relief,n,n);for(const t of [map,bump]){t.wrapS=t.wrapT=T.RepeatWrapping;t.magFilter=T.LinearFilter;t.minFilter=T.LinearMipmapLinearFilter;t.generateMipmaps=true;t.needsUpdate=true}map.colorSpace=T.SRGBColorSpace;const material=new T.MeshStandardMaterial({map,bumpMap:bump,bumpScale:.035,roughness:.69,metalness:.4});paintCache.set(key,material);return material}
 function skyDome(scene){const material=new T.ShaderMaterial({side:T.BackSide,depthWrite:false,uniforms:{top:{value:new T.Color(0x3d6c93)},bottom:{value:new T.Color(0xc5cbbd)}},vertexShader:'varying vec3 v;void main(){v=position;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}',fragmentShader:'varying vec3 v;uniform vec3 top;uniform vec3 bottom;void main(){float h=normalize(v).y;vec3 c=mix(bottom,top,smoothstep(-.05,.7,h));float cloud=sin(v.x*.018+sin(v.z*.012))*sin(v.z*.021);c=mix(c,vec3(.86,.87,.84),smoothstep(.48,.85,cloud)*smoothstep(.1,.4,h)*.27);gl_FragColor=vec4(c,1.);}'});const m=new T.Mesh(new T.SphereGeometry(440,32,16),material);m.renderOrder=-5;scene.add(m);return m}
-function detailTank({root,body,turret,gun},type,team,scheme,mesh){const color=[0x798462,0x8c9275,0x65745b,0x737c68,0x58665e][type];root.traverse(o=>{if(o.isMesh&&o.material.color?.getHex()===color)o.material=armorMaterial(color,scheme)});const details=new T.Group();body.add(details);const gunMetal=0x343c3d;
+function detailTank({root,body,turret,gun},type,team,scheme,mesh){const color=[0x798462,0x8c9275,0x65745b,0x737c68,0x58665e][type];root.traverse(o=>{if(o.isMesh&&o.material.color?.getHex()===color)o.material=armorMaterial(color,scheme)});const details=new T.Group();body.add(details);if(scheme==='admin_ua'&&!team){const crest=new T.Group();crest.position.set(0,.82,.75);turret.add(crest);const gold=0xf5d64b;mesh('box',gold,0,.04,0,.1,.58,.1,crest);for(const side of [-1,1]){mesh('box',gold,side*.23,.12,0,.1,.37,.1,crest);mesh('box',gold,side*.15,-.12,0,.34,.09,.1,crest);mesh('box',gold,side*.32,.34,0,.1,.12,.1,crest)}mesh('box',gold,0,.42,0,.1,.12,.1,crest);}
+const gunMetal=0x343c3d;
 // Cast turret cheeks, applique armor, engine vents, optical glass and fender fittings.
 for(const side of [-1,1]){const cheek=mesh('sphere',color,side*.85,.27,.18,.65,.44,1.05,turret);cheek.material=armorMaterial(color,scheme);for(let i=0;i<5;i++){const skirt=mesh('box',color,side*1.91,1.12,-1.75+i*.85,.12,.6,.79,details);skirt.material=armorMaterial(color,scheme);mesh('cyl',0x8a8e80,side*1.99,1.28,-1.75+i*.85,.045,.09,.045,details).rotation.z=Math.PI/2}mesh('box',0x283128,side*1.04,1.58,1.75,.38,.23,.22,details);const glass=mesh('sphere',0xd8d6a5,side*1.04,1.58,1.88,.13,.08,.04,details);glass.material=new T.MeshStandardMaterial({color:0xd8d6a5,emissive:0x635c32,emissiveIntensity:.4,roughness:.2});mesh('cyl',gunMetal,side*1.25,1.46,-1.9,.12,.55,.12,details).rotation.x=Math.PI/2}
 for(let i=0;i<9;i++)mesh('box',0x252c28,-.75+i*.18,1.73,-1.52,.07,.045,.7,details);mesh('box',0x171e1b,.58,.7,.36,.28,.12,.3,turret);mesh('box',0x599695,.58,.72,.53,.21,.065,.025,turret);for(let i=0;i<4;i++){const sleeve=mesh('cyl',gunMetal,0,0,.8+i*.48,.155,.12,.155,gun);sleeve.rotation.x=Math.PI/2}
@@ -113,6 +115,60 @@ const gun=new T.Group();gun.position.set(0,.18,.9);turret.add(gun);mesh('box',c,
 let seed=7;function rand(){seed=(seed*1664525+1013904223)>>>0;return seed/4294967296}
 function terrain(x,z){return .5*Math.sin(x*.035)*Math.cos(z*.043)+.18*Math.sin(z*.09)}
 function clearWorld(){world.traverse(o=>{if(o.userData.ownedGeometry)o.geometry.dispose();if(o.userData.ownedMaterial){o.material.map?.dispose();o.material.dispose()}});world.clear();tanks=[];obstacles=[];shots=[];particles=[]}
+// Enhanced procedural environments and a modeled industrial hangar.
+// Low-poly silhouettes + repeated structural detail: scalable on mobile.
+function environmentDetail(idx,garageMode=false){
+ const low=save.settings.quality==='low',step=low?2:1;
+ const beam=(x,y,z,sx,sy,sz,c=0x53616a)=>mesh('box',c,x,y,z,sx,sy,sz);
+ if(garageMode){
+  scene.background.set(0x151c25);scene.fog.color.set(0x151c25);
+  beam(0,-.32,0,40,.5,48,0x343c43);
+  for(let k=-4;k<=4;k++){beam(k*4,.02,0,.12,.03,43,0x7b7e75);beam(0,.03,k*5,38,.03,.12,0x73796f)}
+  for(const side of [-1,1]){beam(side*18,7,0,.6,14,48,0x49545d);
+   for(let z=-20;z<=20;z+=10){beam(side*17.4,7,z,.8,13,.8,0x6e7780);
+    beam(side*16,10,z,1.5,.12,2.4,0xd8bd6e)}
+  }
+  beam(0,14,0,38,1.1,48,0x343f48);
+  for(let z=-20;z<=20;z+=10){beam(0,12.8,z,37,.55,.7,0x6e7b85);for(let x=-12;x<=12;x+=12)beam(x,12.4,z,7,.16,2.3,0xe2dfb4)}
+  beam(0,7,-23,37,14,.6,0x424c53);
+  for(let x=-14;x<=14;x+=4)beam(x,7,-22.6,.18,12,.2,0x78818a);
+  for(let x of [-12,12])for(let z of [-12,10]){beam(x,1.4,z,2,2.8,3,0x6b5844);beam(x,2.9,z,2.3,.12,3.3,0xaaa079)}
+  for(let z=-16;z<=16;z+=8){beam(-15,1,z,2,2,2,0x7c654a);beam(15,1,z,2,2,2,0x7c654a)}
+  return;
+ }
+ if(idx===6){ // Lunar regolith, craters, habitats, solar panels, antennae.
+  scene.fog.density=.002;
+  for(let i=0;i<28/step;i++){const x=(rand()-.5)*250,z=(rand()-.5)*250;if(Math.abs(x)<16||Math.abs(z)<16)continue;
+   const r=3+rand()*8;const ring=mesh('cyl',0x697582,x,.02,z,r,.25,r);ring.scale.y=.6;
+   mesh('sphere',0x293644,x,.03,z,r*.72,.12,r*.72)}
+  for(let i=0;i<9/step;i++){let x=(rand()-.5)*210,z=(rand()-.5)*210;const dome=mesh('sphere',0xc6d6e0,x,2.2,z,4.5,2.6,4.5);mesh('cyl',0x748ea0,x,.5,z,4.8,1,4.8);
+   for(let j=-1;j<=1;j++){beam(x+7+j*2,.7,z,1.7,.12,5,0x2b638f);beam(x-7+j*2,.7,z,1.7,.12,5,0x2b638f)}
+   beam(x,5,z,.15,4,.15,0xcdd6d9);mesh('sphere',0xffe1a3,x,7,z,.45,.45,.45)}
+ }else if(idx===5){ // Lava channels, vents, volcanic caldera.
+  scene.fog.density=.004;
+  for(let i=0;i<30/step;i++){let x=(rand()-.5)*245,z=(rand()-.5)*245;if(Math.abs(x)<17||Math.abs(z)<17)continue;
+   let r=3+rand()*7;mesh('cone',0x30272b,x,r*.5,z,r,r*1.8,r);
+   const lava=beam(x,.08,z,r*.65,.12,1.1,0xff4d0a);lava.rotation.y=rand()*6;
+   if(i%4===0){mesh('cyl',0x4b3032,x,1.3,z,1.3,2.6,1.3);mesh('sphere',0xc16d44,x,3.2,z,1.6,1.3,1.6)}
+  }
+  for(let i=0;i<8/step;i++){const x=(rand()-.5)*200,z=(rand()-.5)*200;mesh('cone',0x241e25,x,8,z,9,16,9);mesh('sphere',0xff6025,x,15.5,z,3,.5,3)}
+ }else if(idx===7){ // Harbor: cranes, piers, containers and flooded basins.
+  for(let i=0;i<22/step;i++){const x=(rand()-.5)*230,z=(rand()-.5)*230;if(Math.abs(x)<14||Math.abs(z)<14)continue;
+   beam(x,.04,z,8,.06,12,0x277f9a);for(let j=0;j<3;j++)beam(x+(j-1)*2,1.4,z,2,2.8,5,[0xa35c3d,0x4d7386,0x7a8b5e][j]);}
+  for(let i=0;i<5/step;i++){let x=-100+i*42,z=-95;beam(x,8,z,.9,16,.9,0xe0a84e);beam(x+6,16,z,14,.8,.8,0xe0a84e);beam(x+12,10,z,.12,12,.12,0xbfc4c6)}
+ }else if(idx===3){ // Neon city canyon.
+  for(let i=0;i<30/step;i++){let x=(rand()-.5)*230,z=(rand()-.5)*230;if(Math.abs(x)<16||Math.abs(z)<16)continue;
+   let h=12+rand()*24;beam(x,h/2,z,6,h,7,0x272d49);
+   for(let y=3;y<h;y+=4)beam(x,y,z+3.55,4,.3,.1,i%2?0x22d8eb:0xe649b7);
+  }
+ }else if(idx===4){ // Ruined city: fractured towers and wreckage.
+  for(let i=0;i<30/step;i++){let x=(rand()-.5)*230,z=(rand()-.5)*230;if(Math.abs(x)<15||Math.abs(z)<15)continue;
+   let h=4+rand()*16;beam(x,h/2,z,5,h,6,0x716a62);beam(x,h,z,6,.3,7,0x4d4d4a);
+   for(let j=0;j<3;j++)beam(x+(rand()-.5)*7,.25,z+(rand()-.5)*7,2,.4,2,0x504b48);
+  }
+ }
+}
+
 function buildMap(idx,garage=false){clearWorld();seed=1234+idx*43;const biome=idx%3;const colors=[{ground:0x6f7950,sky:0xa3b5ac,rock:0x777867,tree:0x405939},{ground:0xb69d6a,sky:0xc6bba2,rock:0x8f7c61,tree:0x796f3a},{ground:0xd6dfd9,sky:0xafc5d1,rock:0x84918d,tree:0x3d5b51}][biome];scene.background.set(colors.sky);scene.fog.color.set(colors.sky);
 if(idx===3){scene.background.set(0x292344);scene.fog.color.set(0x342d52)}
 if(idx===4){scene.background.set(0x9d7660);scene.fog.color.set(0x9d7660)}
@@ -123,7 +179,7 @@ const groundGeo=new T.PlaneGeometry(400,400,64,64);groundGeo.rotateX(-Math.PI/2)
 // Procedural terrain grain, shared by all three biomes.
 const texCanvas=document.createElement('canvas');texCanvas.width=texCanvas.height=64;const ctx=texCanvas.getContext('2d');ctx.fillStyle='#a3a38e';ctx.fillRect(0,0,64,64);for(let i=0;i<900;i++){ctx.fillStyle=`rgba(35,40,25,${rand()*.18})`;ctx.fillRect(rand()*64,rand()*64,2,2)}const texture=new T.CanvasTexture(texCanvas);texture.wrapS=texture.wrapT=T.RepeatWrapping;texture.repeat.set(60,60);ground.material=new T.MeshStandardMaterial({color:colors.ground,map:texture,roughness:1});
 for(let i=0;i<22;i++){const a=i*Math.PI*2/22,r=155+rand()*45;const m=mesh('sphere',colors.rock,Math.sin(a)*r,-8,Math.cos(a)*r,25+rand()*30,25+rand()*35,30);m.rotation.y=rand()*6}
-if(garage){mesh('cyl',0x535c4d,0,-.15,0,6,.3,6);for(let i=-3;i<=3;i++)mesh('box',0x9ca477,i*2,.015,0,.025,.02,12);for(let j=0;j<5;j++)mesh('box',0x59614f,-12,2,-16+j*5,2,4,3);return}
+if(garage){mesh('cyl',0x535c4d,0,-.15,0,6,.3,6);for(let i=-3;i<=3;i++)mesh('box',0x9ca477,i*2,.015,0,.025,.02,12);for(let j=0;j<5;j++)mesh('box',0x59614f,-12,2,-16+j*5,2,4,3);environmentDetail(idx,true);return}
 mesh('box',biome===2?0xb0bcb5:0x91876b,0,-.08,0,12,.08,290);mesh('box',biome===2?0xb0bcb5:0x91876b,0,-.08,0,290,.08,10);
 for(let i=0;i<52;i++){let x=(rand()-.5)*250,z=(rand()-.5)*250;if(Math.abs(x)<12||Math.abs(z)<12||Math.hypot(x,z+90)<20)continue;let r=3+rand()*4;if(i<22){mesh('box',biome===0?0x9c9b7f:biome===1?0x9c8764:0x7d8b87,x,terrain(x,z)+2,z,r*2,4,r*1.7);if(idx===0){let roof=mesh('cone',0x655347,x,5,z,r*1.6,2,r*1.5);roof.rotation.y=Math.PI/4}else mesh('box',0x59645b,x,4.1,z,r*2.1,.3,r*1.8);for(let j=-1;j<=1;j++)mesh('box',0x343f37,x+j*1.7,2.4,z+r*.86,.65,.8,.04)}else{let rock=mesh('sphere',colors.rock,x,terrain(x,z)+r*.45,z,r,r*.8,r);rock.rotation.set(rand(),rand()*5,rand())}obstacles.push({x,z,r:r+1})}
 // Instanced vegetation keeps the environment draw-call count bounded.
@@ -136,7 +192,7 @@ else if(idx===5){mesh('cone',0x392d31,x,y+height/2,z,3,height,3);mesh('sphere',n
 else if(idx===6){mesh('cyl',0xb4c4d1,x,y+height/2,z,3,height,3);mesh('sphere',0x2d4f69,x,y+height,z,3,1.4,3)}
 else{mesh('box',0x3e6268,x,y+1.5,z,7,3,3);mesh('box',neon,x,y+3.1,z,7,.1,3)}
 }}
-batchRigid(world)}
+environmentDetail(idx,false);batchRigid(world)}
 function makeTank(type,team,x,z,isPlayer=false){const visual=model(type,team),u=isPlayer?(save.upgrades[type]||[0,0,0]):[0,0,0],d=TYPES[type];const t={...visual,type,team,isPlayer,x,z,yaw:team?Math.PI:0,turretYaw:team?Math.PI:0,pitch:0,hp:d.hp*(1+.12*u[0]),maxHp:d.hp*(1+.12*u[0]),armor:d.armor*(1+.12*u[0]),maxSpeed:d.speed*(1+.08*u[1]),damage:d.damage*(1+.12*u[2]),reload:d.reload,speed:0,cool:1,dead:false,track:0,engine:0,ammo:0,rounds:[50,15,12],mg:createMG(),repairs:1,inputX:0,inputY:0,think:rand(),target:null,steer:0,throttle:0};if(isPlayer){const used=consumeLoadout(save);t.repairs=1+(used.includes('repairKit')?1:0);if(used.includes('ammoCrate')){t.rounds=[70,23,18];t.mg=createMG(120)}if(used.includes('overdrive'))t.maxSpeed*=1.12;if(save.loadout.equipment.includes('rammer'))t.reload*=.85;persist()}t.root.position.set(x,terrain(x,z),z);world.add(t.root);tanks.push(t);return t}
 function garage(){state='garage';$('garage').hidden=false;$('hud').hidden=true;$('overlay').hidden=true;zoom=0;buildMap(0,true);preview=model(selected);world.add(preview.root);garageUI()}
 function garageUI(){$('credits').textContent=save.credits.toLocaleString('ru');$('stats').textContent=`БОЁВ ${save.stats.battles} / ПОБЕД ${save.stats.wins} / УНИЧТОЖЕНО ${save.stats.kills}`;$('rankPanel').innerHTML=rankMarkup();$('tankCards').innerHTML=TYPES.map((d,i)=>`<button class="tankCard ${i===selected?'active':''}" data-tank="${i}">${d.name}<small>${save.owned.includes(i)?d.class:'◈ '+d.price}</small></button>`).join('');document.querySelectorAll('[data-tank]').forEach(b=>b.onclick=()=>{selected=+b.dataset.tank;world.remove(preview.root);preview.root.traverse(o=>{if(o.userData.ownedGeometry)o.geometry.dispose()});preview=model(selected);world.add(preview.root);garageUI();sound('ui')});const d=TYPES[selected],u=save.upgrades[selected]||[0,0,0];$('spec').innerHTML=`<div class="eyebrow">${d.class}</div><h2>${d.name}</h2>${[['Прочность',Math.round(d.hp*(1+.12*u[0])),2500],['Броня',Math.round(d.armor*(1+.12*u[0])),250],['Скорость',Math.round(d.speed*3.6*(1+.08*u[1])),90],['Урон',Math.round(d.damage*(1+.12*u[2])),650]].map(([n,v,m])=>`<div class="stat">${n}<b>${v}</b><div class="bar"><i style="width:${v/m*100}%"></i></div></div>`).join('')}${save.owned.includes(selected)?`<div id="upgrades">${['Броня','Мотор','Орудие'].map((n,i)=>`<button data-up="${i}">${n} ${u[i]}/3<br>${u[i]<3?'◈ '+(300+u[i]*300):'MAX'}</button>`).join('')}</div>`:`<button id="buy" class="primary">Купить · ${d.price} ◈</button>`}`;if($('buy'))$('buy').onclick=()=>{if(save.credits<d.price)return notify('Недостаточно кредитов');save.credits-=d.price;save.owned.push(selected);persist();garageUI()};document.querySelectorAll('[data-up]').forEach(b=>b.onclick=()=>{let i=+b.dataset.up,cost=300+u[i]*300;if(u[i]>=3)return;if(save.credits<cost)return notify('Недостаточно кредитов');save.credits-=cost;u[i]++;save.upgrades[selected]=u;persist();garageUI()});$('start').disabled=!save.owned.includes(selected)}

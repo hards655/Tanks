@@ -10,7 +10,8 @@ export const PRODUCTS=[
  {id:'overdrive',name:'Усиленное топливо',category:'supplies',price:140,description:'+12% скорости в следующем бою.'},
  {id:'forest',name:'Лесной камуфляж',category:'paint',price:450,description:'Трёхцветная окраска. Только внешний вид.'},
  {id:'desert',name:'Пустынный камуфляж',category:'paint',price:450,description:'Песочная окраска. Только внешний вид.'},
- {id:'winter',name:'Зимний камуфляж',category:'paint',price:450,description:'Светлая полевая окраска. Только внешний вид.'}
+ {id:'winter',name:'Зимний камуфляж',category:'paint',price:450,description:'Светлая полевая окраска. Только внешний вид.'},
+ {id:'admin_ua',name:'Админский: Сине-жёлтый Трезубец',category:'paint',price:0,description:'Сине-жёлтая окраска с гербом-трезубцем. Бесплатный декоративный скин.'}
 ];
 export function migrateProfile(s){s.inventory??={};s.equipment??=[];s.paints??=['factory'];s.loadout??={equipment:[],supplies:[],paint:'factory'};return s}
 export function purchase(s,id){const p=PRODUCTS.find(p=>p.id===id);if(!p)return 'Товар не найден';if(p.category==='equipment'&&s.equipment.includes(id)||p.category==='paint'&&s.paints.includes(id))return 'Уже приобретено';if(s.credits<p.price)return 'Недостаточно кредитов';if(p.category==='supplies'&&(s.inventory[id]||0)>=10)return 'На складе уже 10';s.credits-=p.price;if(p.category==='equipment')s.equipment.push(id);else if(p.category==='paint')s.paints.push(id);else s.inventory[id]=(s.inventory[id]||0)+1;return null}

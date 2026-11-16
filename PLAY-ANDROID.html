@@ -100,7 +100,7 @@ let save;try{save=JSON.parse(localStorage.getItem('steel-thunder-v1'))}catch{}sa
 migrateProfile(save);
 function persist(){try{localStorage.setItem('steel-thunder-v1',JSON.stringify(save))}catch{notify('Сохранение недоступно в этом браузере')}}
 const mobile=matchMedia('(pointer:coarse)').matches;document.body.classList.toggle('desktop',!mobile);
-const renderer=new T.WebGLRenderer({canvas:$('game'),antialias:true,powerPreference:'high-performance'});renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));renderer.shadowMap.enabled=true;renderer.shadowMap.type=T.PCFSoftShadowMap;renderer.toneMapping=T.ACESFilmicToneMapping;renderer.toneMappingExposure=1.15;
+const renderer=new T.WebGLRenderer({canvas:$('game'),antialias:true,powerPreference:'high-performance'});renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(devicePixelRatio,mobile?1.25:1.5));renderer.shadowMap.enabled=true;renderer.shadowMap.type=T.PCFSoftShadowMap;renderer.toneMapping=T.ACESFilmicToneMapping;renderer.toneMappingExposure=1.15;
 const scene=new T.Scene(),camera=new T.PerspectiveCamera(55,innerWidth/innerHeight,.15,550);scene.background=new T.Color(0x899f91);scene.fog=new T.FogExp2(0x899f91,.006);scene.add(new T.HemisphereLight(0xdbeaf5,0x43482c,2.2));const sun=new T.DirectionalLight(0xffedd2,3.5);sun.position.set(-45,70,35);sun.castShadow=true;sun.shadow.mapSize.set(1024,1024);Object.assign(sun.shadow.camera,{left:-95,right:95,top:95,bottom:-95,near:1,far:200});sun.shadow.bias=-.001;scene.add(sun);scene.add(sun.target);const sky=skyDome(scene);
 const world=new T.Group();scene.add(world);let tanks=[],obstacles=[],shots=[],particles=[],player,preview,selected=0,mapIndex=0,mode='solo',flagCarrier=null,flagTimer=0,flagMesh=null,flagPole=null,flagTransferCooldown=0,state='garage',wave=1,kills=0,earned=0,elapsed=0,zoom=0,autoLock=false,aimYaw=0,aimPitch=.06,garageYaw=.55,gameTime=0,repairUsed=false,editing=false;
 const mats=new Map(),geo={box:bevelBox(),sphere:new T.IcosahedronGeometry(1,2),cyl:new T.CylinderGeometry(1,1,1,24),cone:new T.ConeGeometry(1,1,16)};
@@ -194,8 +194,11 @@ function applyComicArt(idx,garageMode=false){
 // low/medium use 512/1024 to protect Android GPU memory and startup time.
 function terrainPBR(idx){
  const quality=save.settings.quality;
- const memory=navigator.deviceMemory||4;
- const size=quality==='high'?(memory>=4?4096:2048):quality==='medium'?1024:512;
+ const memory=navigator.deviceMemory||2;
+ const mobileGPU=matchMedia('(pointer:coarse)').matches;
+ const gpuCap=renderer.capabilities.maxTextureSize||2048;
+ const target=quality==='high'?(mobileGPU?(memory>=6?2048:1024):4096):quality==='medium'?1024:512;
+ const size=Math.min(target,gpuCap);
  const canvas=document.createElement('canvas');canvas.width=canvas.height=size;
  const ctx=canvas.getContext('2d',{alpha:false});
  const palettes=[
@@ -251,6 +254,29 @@ function makeRockGeometry(seedValue=1,detail=1){
  }
  p.needsUpdate=true;g.computeVertexNormals();return g;
 }
+// Small, reusable authored rock microdetail: no downloads or third-party assets.
+// One tiling 256px height field serves all cliff and boulder materials.
+let stoneBumpTexture=null;const stoneMaterialBank=new Map();
+function stoneMaterial(color){
+ if(stoneMaterialBank.has(color))return stoneMaterialBank.get(color);
+ if(!stoneBumpTexture){
+  const size=256,buf=new Uint8Array(size*size*4);
+  let rng=0x4a67b92;const rnd=()=>{rng=(Math.imul(rng,1664525)+1013904223)>>>0;return rng/4294967296};
+  for(let y=0;y<size;y++)for(let x=0;x<size;x++){
+   const fine=rnd()*.28,layer=Math.sin(y*.19+Math.sin(x*.035)*2.1)*.17;
+   const fracture=Math.abs(Math.sin(x*.087+y*.063+Math.sin(y*.024)*3))>.985?-.32:0;
+   const v=Math.max(0,Math.min(255,Math.floor(150+95*(fine+layer+fracture))));
+   const i=(y*size+x)*4;buf[i]=buf[i+1]=buf[i+2]=v;buf[i+3]=255;
+  }
+  stoneBumpTexture=new T.DataTexture(buf,size,size,T.RGBAFormat);
+  stoneBumpTexture.wrapS=stoneBumpTexture.wrapT=T.RepeatWrapping;
+  stoneBumpTexture.repeat.set(2,2);stoneBumpTexture.generateMipmaps=true;
+  stoneBumpTexture.minFilter=T.LinearMipmapLinearFilter;stoneBumpTexture.magFilter=T.LinearFilter;
+  stoneBumpTexture.needsUpdate=true;
+ }
+ const m=new T.MeshStandardMaterial({color,roughness:.96,metalness:.015,flatShading:true,bumpMap:stoneBumpTexture,bumpScale:.12});
+ stoneMaterialBank.set(color,m);return m;
+}
 const rockGeometryBank=[];
 function rockGeometry(variant,low){
  const k=variant*2+(low?0:1);
@@ -285,7 +311,7 @@ function buildMap(idx,garage=false){
  const cyl=(x,y,z,r,h,c)=>mesh('cyl',c,x,y,z,r,h,r);
  const orb=(x,y,z,r,c)=>mesh('sphere',c,x,y,z,r,r,r);
  const rock=(x,z,r,c=stone)=>{
-  const v=Math.floor(rand()*6),m=new T.Mesh(rockGeometry(v,low),mat(c));
+  const v=Math.floor(rand()*6),m=new T.Mesh(rockGeometry(v,low),stoneMaterial(c));
   m.position.set(x,terrain(x,z)+r*.43,z);m.scale.set(r*(.8+rand()*.4),r*(.7+rand()*.5),r*(.8+rand()*.4));
   m.rotation.set((rand()-.5)*.5,rand()*6.283,(rand()-.5)*.4);
   m.castShadow=r>2;m.receiveShadow=true;world.add(m);return m;
@@ -302,9 +328,9 @@ function buildMap(idx,garage=false){
   for(let k=1;k<n-1;k++)faces.push(2*n,2*n+k,2*n+k+1);
   const positions=[];for(const i of faces)positions.push(...verts.slice(i*3,i*3+3));
   g.setAttribute('position',new T.Float32BufferAttribute(positions,3));g.computeVertexNormals();
-  const m=new T.Mesh(g,new T.MeshStandardMaterial({color:c,roughness:1,flatShading:true}));
+  const m=new T.Mesh(g,stoneMaterial(c));
   m.position.set(x,terrain(x,z)-.5,z);m.castShadow=true;m.receiveShadow=true;
-  m.userData.ownedGeometry=true;m.userData.ownedMaterial=true;world.add(m);return m;
+  m.userData.ownedGeometry=true;world.add(m);return m;
  };
  const blocked=(x,z,r=4)=>Math.abs(x)<15||Math.abs(z)<15||Math.hypot(x,z+90)<24||obstacles.some(o=>Math.hypot(x-o.x,z-o.z)<o.r+r);
  const point=(min=22,max=125)=>{for(let k=0;k<40;k++){let x=(rand()-.5)*max*2,z=(rand()-.5)*max*2;if(!blocked(x,z,5)&&Math.hypot(x,z)>min)return [x,z]}return null};
@@ -382,7 +408,7 @@ function buildMap(idx,garage=false){
   const debrisCount=low?95:280,variants=5;
   for(let v=0;v<variants;v++){
    const n=Math.ceil(debrisCount/variants);
-   const inst=new T.InstancedMesh(rockGeometry(v,low),mat(v%3===0?0x555e6c:v%3===1?0x838996:0x686e7b),n);
+   const inst=new T.InstancedMesh(rockGeometry(v,low),stoneMaterial(v%3===0?0x555e6c:v%3===1?0x838996:0x686e7b),n);
    const dummy=new T.Object3D();
    for(let j=0;j<n;j++){
     let x=(rand()-.5)*290,z=(rand()-.5)*290;
@@ -612,12 +638,12 @@ $('game').addEventListener('pointermove',e=>{if(state==='tour'){if(tourPointer?.
 window.addEventListener('pointerup',e=>{if(tourPointer?.id===e.pointerId)tourPointer=null;if(drag?.id===e.pointerId)drag=null;release(e)});window.addEventListener('pointercancel',e=>{if(tourPointer?.id===e.pointerId)tourPointer=null;release(e)});$('game').addEventListener('lostpointercapture',release);window.addEventListener('contextmenu',e=>e.preventDefault());
 $('mgReload').onclick=()=>{if(state==='battle'&&!editing)reloadMG(player.mg)};$('center').onclick=()=>{if(state==='battle'&&!editing){aimYaw=player.yaw;aimPitch=.04}};
 window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});
-let last=performance.now(),fpsAccum=0,frames=0,adaptive=1;const desiredPos=new T.Vector3(),look=new T.Vector3();function frame(now){requestAnimationFrame(frame);const dt=Math.min((now-last)/1000,.04);last=now;gameTime+=dt;if(state==='tour'){
+let last=performance.now(),fpsAccum=0,frames=0,adaptive=1;const pixelCap=Math.min(devicePixelRatio,mobile?1.25:1.5);const desiredPos=new T.Vector3(),look=new T.Vector3();function frame(now){requestAnimationFrame(frame);const dt=Math.min((now-last)/1000,.04);last=now;gameTime+=dt;if(state==='tour'){
  const cp=Math.cos(tourPitch);
  camera.position.set(tourCenter.x+Math.sin(tourYaw)*cp*tourDistance,tourCenter.y+Math.sin(tourPitch)*tourDistance,tourCenter.z+Math.cos(tourYaw)*cp*tourDistance);
  camera.lookAt(tourCenter);camera.fov=55;camera.updateProjectionMatrix();
  sun.position.set(-45,70,35);sun.target.position.set(0,0,0);
- }else if(state==='garage'){const a=garageYaw+Math.sin(gameTime*.12)*.05;camera.position.set(Math.sin(a)*12,6.2,Math.cos(a)*12);camera.lookAt(0,1,0);camera.fov=55;camera.updateProjectionMatrix();preview.root.rotation.y=.3}else if(player){if(state==='battle'&&!editing){elapsed+=dt;tanks.forEach(t=>updateTank(t,dt));updateShots(dt);updateEffects(dt);if(mode==='flag')updateFlag(dt);if(state==='battle'&&player.dead)end(false);else if(state==='battle'&&!tanks.some(t=>t.team===1&&!t.dead)){if(mode==='flag'){end(true)}else if(mode==='survival'){wave++;player.hp=Math.min(player.maxHp,player.hp+player.maxHp*.2);player.rounds=player.rounds.map((n,i)=>n+[20,7,5][i]);spawnWave()}else end(true)}hud();musicTime+=dt;if(musicTime>4){musicTime=0;sound('music')}}viewYaw+=angle(aimYaw-viewYaw)*(1-Math.exp(-dt*save.settings.smoothing));viewPitch=damp(viewPitch,aimPitch,save.settings.smoothing,dt);const base=new T.Vector3(player.x,terrain(player.x,player.z)+2.2,player.z),dir=new T.Vector3(Math.sin(viewYaw)*Math.cos(viewPitch),Math.sin(viewPitch),Math.cos(viewYaw)*Math.cos(viewPitch));if(zoom){desiredPos.copy(base).addScaledVector(dir,4.8);camera.position.copy(desiredPos);look.copy(base).addScaledVector(dir,160)}else{desiredPos.copy(base).addScaledVector(dir,-12);desiredPos.y+=5;camera.position.lerp(desiredPos,1-Math.exp(-dt*7));look.copy(base).addScaledVector(dir,60)}camera.lookAt(look);camera.fov=zoom?[55,30,17,10][zoom]:55;camera.updateProjectionMatrix();player.root.visible=!zoom;sun.position.set(player.x-45,70,player.z+35);sun.target.position.set(player.x,0,player.z)}if(engineGain){engineGain.gain.setTargetAtTime(state==='battle'&&save.settings.sound?.018:0,audio.currentTime,.1);engineOsc.frequency.setTargetAtTime(35+Math.abs(player?.speed||0)*3,audio.currentTime,.1)}sky.position.copy(camera.position);renderer.render(scene,camera);fpsAccum+=dt;frames++;if(fpsAccum>3){const fps=frames/fpsAccum;if(state==='battle'&&fps<28&&adaptive>.6){adaptive-=.1;renderer.setPixelRatio(Math.min(devicePixelRatio,1.3)*adaptive)}window.STEEL_METRICS={fps:Math.round(fps),drawCalls:renderer.info.render.calls,triangles:renderer.info.render.triangles,tanks:tanks.length,particles:particles.length,state};fpsAccum=0;frames=0}}
+ }else if(state==='garage'){const a=garageYaw+Math.sin(gameTime*.12)*.05;camera.position.set(Math.sin(a)*12,6.2,Math.cos(a)*12);camera.lookAt(0,1,0);camera.fov=55;camera.updateProjectionMatrix();preview.root.rotation.y=.3}else if(player){if(state==='battle'&&!editing){elapsed+=dt;tanks.forEach(t=>updateTank(t,dt));updateShots(dt);updateEffects(dt);if(mode==='flag')updateFlag(dt);if(state==='battle'&&player.dead)end(false);else if(state==='battle'&&!tanks.some(t=>t.team===1&&!t.dead)){if(mode==='flag'){end(true)}else if(mode==='survival'){wave++;player.hp=Math.min(player.maxHp,player.hp+player.maxHp*.2);player.rounds=player.rounds.map((n,i)=>n+[20,7,5][i]);spawnWave()}else end(true)}hud();musicTime+=dt;if(musicTime>4){musicTime=0;sound('music')}}viewYaw+=angle(aimYaw-viewYaw)*(1-Math.exp(-dt*save.settings.smoothing));viewPitch=damp(viewPitch,aimPitch,save.settings.smoothing,dt);const base=new T.Vector3(player.x,terrain(player.x,player.z)+2.2,player.z),dir=new T.Vector3(Math.sin(viewYaw)*Math.cos(viewPitch),Math.sin(viewPitch),Math.cos(viewYaw)*Math.cos(viewPitch));if(zoom){desiredPos.copy(base).addScaledVector(dir,4.8);camera.position.copy(desiredPos);look.copy(base).addScaledVector(dir,160)}else{desiredPos.copy(base).addScaledVector(dir,-12);desiredPos.y+=5;camera.position.lerp(desiredPos,1-Math.exp(-dt*7));look.copy(base).addScaledVector(dir,60)}camera.lookAt(look);camera.fov=zoom?[55,30,17,10][zoom]:55;camera.updateProjectionMatrix();player.root.visible=!zoom;sun.position.set(player.x-45,70,player.z+35);sun.target.position.set(player.x,0,player.z)}if(engineGain){engineGain.gain.setTargetAtTime(state==='battle'&&save.settings.sound?.018:0,audio.currentTime,.1);engineOsc.frequency.setTargetAtTime(35+Math.abs(player?.speed||0)*3,audio.currentTime,.1)}sky.position.copy(camera.position);renderer.render(scene,camera);fpsAccum+=dt;frames++;if(fpsAccum>3){const fps=frames/fpsAccum;if((state==='battle'||state==='tour')&&fps<29&&adaptive>.6){adaptive=Math.max(.6,adaptive-.1);renderer.setPixelRatio(pixelCap*adaptive)}else if((state==='battle'||state==='tour')&&fps>53&&adaptive<1){adaptive=Math.min(1,adaptive+.05);renderer.setPixelRatio(pixelCap*adaptive)}window.STEEL_METRICS={fps:Math.round(fps),drawCalls:renderer.info.render.calls,triangles:renderer.info.render.triangles,tanks:tanks.length,particles:particles.length,state};fpsAccum=0;frames=0}}
 
 
 function initFlag(){flagCarrier=null;flagTimer=0;flagTransferCooldown=0;if(flagMesh){world.remove(flagMesh);flagMesh=null}flagMesh=new T.Group();const pole=mesh('box',0xe5e3cb,0,2,0,.14,4,.14,flagMesh);const cloth=mesh('box',0xffc439,.75,3.65,0,1.5,.85,.1,flagMesh);cloth.material=mat(0xffc439);flagMesh.position.set(0,terrain(0,0),0);world.add(flagMesh)}

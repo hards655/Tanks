@@ -44,6 +44,7 @@ return {ACESFilmicToneMapping:et,AddEquation:y,AddOperation:J,AdditiveAnimationB
 })();
 
 // Deterministic input, weapon and economy rules shared with the test suite.
+// Deterministic input, weapon and economy rules shared with the test suite.
 function joystickVector(x,y,deadzone=.12){const r=Math.hypot(x,y);if(r<=deadzone)return{x:0,y:0};const m=(Math.min(r,1)-deadzone)/(1-deadzone);return{x:x/r*m,y:y/r*m}}
 function damp(current,target,rate,dt){return current+(target-current)*(1-Math.exp(-rate*dt))}
 const PRODUCTS=[
@@ -121,12 +122,36 @@ const world=new T.Group();scene.add(world);let tanks=[],obstacles=[],shots=[],pa
 const mats=new Map(),geo={box:bevelBox(),sphere:new T.IcosahedronGeometry(1,2),cyl:new T.CylinderGeometry(1,1,1,24),cone:new T.ConeGeometry(1,1,16)};
 function mat(c){if(!mats.has(c))mats.set(c,new T.MeshStandardMaterial({color:c,roughness:.76,metalness:.25}));return mats.get(c)}
 function mesh(g,c,x,y,z,sx=1,sy=1,sz=1,parent=world){const m=new T.Mesh(geo[g],mat(c));m.position.set(x,y,z);m.scale.set(sx,sy,sz);m.castShadow=true;m.receiveShadow=true;parent.add(m);return m}
+
+// Visible modular equipment attachments; ownership is applied to the garage and player tank.
+// Original designs, built from shared geometry so static parts batch with the turret.
+function modelGear(turret,body,gun,team){
+ if(team!==0)return;const eq=save.loadout.equipment||[];
+ if(eq.includes('smokeGrenades')){
+  for(const side of [-1,1]){mesh('box',0x3e4d4c,side*1.25,.42,.35,.55,.35,.65,turret);
+   for(let j=0;j<3;j++){const tube=mesh('cyl',0x303c3a,side*(1.12+j*.13),.68,.55,.11,.52,.11,turret);tube.rotation.x=Math.PI*.34}
+  }
+ }
+ if(eq.includes('optics')){
+  mesh('box',0x2a3434,-.58,.91,.19,.48,.42,.64,turret);
+  mesh('box',0x4c9799,-.58,.97,.53,.31,.27,.045,turret);
+  mesh('box',0x181e22,-.58,.89,.58,.38,.03,.08,turret);
+ }
+ if(eq.includes('heavyTracks'))for(const side of [-1,1])for(let k=0;k<5;k++)mesh('box',0x465449,side*1.93,1.05,-1.82+k*.9,.18,.62,.81,body);
+ if(eq.includes('wetRack')||eq.includes('ammoPouch'))for(let side of [-1,1]){mesh('box',0x5b6457,side*.72,.42,-1.2,.68,.48,.42,turret);
+  mesh('box',0x222b2b,side*.72,.71,-1.2,.6,.08,.34,turret)}
+ if(eq.includes('spallLiner'))for(const side of [-1,1])for(let k=0;k<3;k++)mesh('box',0x586357,side*1.13,.18,-.64+k*.58,.24,.48,.53,turret);
+ if(eq.includes('longBarrel')){const collar=mesh('cyl',0x414847,0,0,2.7,.19,.48,.19,gun);collar.rotation.x=Math.PI/2;mesh('box',0x66716a,0,0,2.9,.27,.1,.3,gun)}
+ if(eq.includes('gunLaying'))for(let side of [-1,1]){const piston=mesh('cyl',0x7e8580,side*.43,-.22,.64,.052,.88,.052,gun);piston.rotation.x=Math.PI/2}
+ if(eq.includes('fieldWorkshop')){mesh('box',0x4f584b,.9,1.7,-1.45,1,.55,.7,body);mesh('box',0x91947c,.9,2,-1.45,.95,.07,.72,body)}
+}
+
 function model(type,team=0){const d=TYPES[type],root=new T.Group(),body=new T.Group();root.add(body);const c=d.color;mesh('box',c,0,1.12,0,2.9,.72,4.3,body);const deck=mesh('box',c,0,1.5,-.15,2.65,.35,3.5,body);deck.rotation.x=.07;const nose=mesh('box',c,0,1.14,2,2.8,.7,.6,body);nose.rotation.x=-.35;
 const wheels=[],trackLinks=[];for(const side of [-1,1]){mesh('box',0x222824,side*1.55,.64,0,.66,1.13,4.8,body);for(let i=0;i<7;i++){const w=mesh('cyl',0x444c3b,side*1.91,.66,-1.92+i*.64,.38,.12,.38,body);w.rotation.z=Math.PI/2;wheels.push(w)}for(let i=0;i<14;i++){mesh('box',0x51564a,side*1.56,1.22,-2.15+i*.33,.72,.09,.14,body);mesh('box',0x343b32,side*1.56,.09,-2.15+i*.33,.72,.08,.14,body)}}
 // Continuous articulated tracks follow an oval loop around the road wheels.
 for(const side of [-1,1])for(let i=0;i<44;i++){const link=mesh('box',0x252b29,side*1.94,.65,0,.31,.13,.32,body);link.userData.trackLink=true;link.userData.side=side;link.userData.phase=i/44;trackLinks.push(link)}
 const turret=new T.Group();turret.position.set(0,1.75,-.25);body.add(turret);const cup=mesh('cyl',c,0,.08,0,1.35,.7,1.2,turret);cup.rotation.y=Math.PI/8;mesh('box',c,0,.38,-.08,1.8,.4,1.75,turret);mesh('cyl',0x454f3f,-.55,.7,-.3,.4,.15,.4,turret);mesh('cyl',0x202b22,.72,1.15,-.7,.025,1.7,.025,turret);mesh('box',team?0xb15f4b:0xd3e48b,0,.45,.82,.65,.14,.04,turret);
-const gun=new T.Group();gun.position.set(0,.18,.9);turret.add(gun);mesh('box',c,0,0,.15,.7,.6,.6,gun);const barrel=mesh('cyl',c,0,0,1.65,.13,3.1,.13,gun);barrel.rotation.x=Math.PI/2;mesh('box',0x3a4638,0,0,3.2,.36,.3,.55,gun);mesh('box',0x111713,0,0,3.49,.18,.14,.02,gun);for(let i=0;i<3;i++)mesh('box',0x4b5343,-.8+i*.8,1.72,-1.55,.55,.15,.7,body);root.scale.setScalar(d.scale);const extra=detailTank({root,body,turret,gun},type,team,team?'factory':save.loadout.paint,mesh);for(const assembly of [body,turret,gun,extra.details,extra.mgMount])batchRigid(assembly,wheels);return{root,body,turret,gun,wheels,trackLinks,trackPhase:0,...extra}}
+const gun=new T.Group();gun.position.set(0,.18,.9);turret.add(gun);mesh('box',c,0,0,.15,.7,.6,.6,gun);const barrel=mesh('cyl',c,0,0,1.65,.13,3.1,.13,gun);barrel.rotation.x=Math.PI/2;mesh('box',0x3a4638,0,0,3.2,.36,.3,.55,gun);mesh('box',0x111713,0,0,3.49,.18,.14,.02,gun);for(let i=0;i<3;i++)mesh('box',0x4b5343,-.8+i*.8,1.72,-1.55,.55,.15,.7,body);root.scale.setScalar(d.scale);const extra=detailTank({root,body,turret,gun},type,team,team?'factory':save.loadout.paint,mesh);modelGear(turret,body,gun,team);for(const assembly of [body,turret,gun,extra.details,extra.mgMount])batchRigid(assembly,wheels);return{root,body,turret,gun,wheels,trackLinks,trackPhase:0,...extra}}
 let seed=7;function rand(){seed=(seed*1664525+1013904223)>>>0;return seed/4294967296}
 function terrain(x,z){return .5*Math.sin(x*.035)*Math.cos(z*.043)+.18*Math.sin(z*.09)}
 function clearWorld(){world.traverse(o=>{if(o.userData.ownedGeometry)o.geometry.dispose();if(o.userData.ownedMaterial){o.material.map?.dispose();o.material.dispose()}});world.clear();tanks=[];obstacles=[];shots=[];particles=[]}

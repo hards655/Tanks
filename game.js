@@ -65,11 +65,11 @@ function environmentDetail(idx,garageMode=false){
  }else if(idx===5){ // Lava channels, vents, volcanic caldera.
   scene.fog.density=.004;
   for(let i=0;i<30/step;i++){let x=(rand()-.5)*245,z=(rand()-.5)*245;if(Math.abs(x)<17||Math.abs(z)<17)continue;
-   let r=3+rand()*7;mesh('cone',0x30272b,x,r*.5,z,r,r*1.8,r);
+   let r=3+rand()*7;const a=mesh('box',0x30272b,x,r*.7,z,r*.8,r*1.5,r*.7);a.rotation.set(rand()*.6,rand()*6.28,rand()*.6);
    const lava=beam(x,.08,z,r*.65,.12,1.1,0xff4d0a);lava.rotation.y=rand()*6;
    if(i%4===0){mesh('cyl',0x4b3032,x,1.3,z,1.3,2.6,1.3);mesh('sphere',0xc16d44,x,3.2,z,1.6,1.3,1.6)}
   }
-  for(let i=0;i<8/step;i++){const x=(rand()-.5)*200,z=(rand()-.5)*200;mesh('cone',0x241e25,x,8,z,9,16,9);mesh('sphere',0xff6025,x,15.5,z,3,.5,3)}
+  for(let i=0;i<8/step;i++){const x=(rand()-.5)*200,z=(rand()-.5)*200;const a=mesh('box',0x241e25,x,8,z,12,16,11);a.rotation.set(rand()*.4,rand()*6.28,rand()*.35);mesh('sphere',0xff6025,x,15.5,z,3,.5,3)}
  }else if(idx===7){ // Harbor: cranes, piers, containers and flooded basins.
   for(let i=0;i<22/step;i++){const x=(rand()-.5)*230,z=(rand()-.5)*230;if(Math.abs(x)<14||Math.abs(z)<14)continue;
    beam(x,.04,z,8,.06,12,0x277f9a);for(let j=0;j<3;j++)beam(x+(j-1)*2,1.4,z,2,2.8,5,[0xa35c3d,0x4d7386,0x7a8b5e][j]);}
@@ -156,7 +156,8 @@ function terrainPBR(idx){
  const map=new T.CanvasTexture(canvas);map.wrapS=map.wrapT=T.RepeatWrapping;map.repeat.set(12,12);
  map.colorSpace=T.SRGBColorSpace;map.anisotropy=Math.min(8,renderer.capabilities.getMaxAnisotropy());map.needsUpdate=true;
  // Shared image used as a low-cost height detail source, avoiding another 4K allocation.
- const material=new T.MeshStandardMaterial({color:0xffffff,map,roughness:idx===7?.78:.96,metalness:idx===3?.14:0});
+ const material=new T.MeshStandardMaterial({color:0xffffff,map,bumpMap:map,bumpScale:idx===2?.05:.115,roughness:idx===7?.78:.96,metalness:idx===3?.14:0});
+ if(save.settings.quality==='high'&&!mobileGPU){material.onBeforeCompile=shader=>{shader.fragmentShader=shader.fragmentShader.replace('#include <color_fragment>','#include <color_fragment>\\n diffuseColor.rgb *= .975 + .025*sin(vUv.x*775.)*sin(vUv.y*791.);')};}
  material.userData.ownedMap=map;
  return material;
 }
@@ -206,6 +207,125 @@ function rockGeometry(variant,low){
  return rockGeometryBank[k];
 }
 
+
+// 2026 terrain art pass: fully original meshes (no model downloads or copied game assets).
+// Trees use branching trunks and irregular leaf fans, never primitive cones/spheres.
+const naturalTreeCache=new Map(),naturalTreeMat=new T.MeshStandardMaterial({vertexColors:true,roughness:.99,side:T.DoubleSide,flatShading:true});
+function naturalTreeGeometry(kind=0,variant=0){
+ const key=kind+':'+variant;if(naturalTreeCache.has(key))return naturalTreeCache.get(key);
+ const verts=[],colors=[];const wood=[.19,.12,.072],green=kind===2?[.30,.43,.33]:kind===1?[.12,.25,.22]:[.11,.32,.17];
+ const shade=(c,k)=>c.map(v=>Math.max(0,Math.min(1,v*k)));
+ const face=(a,b,c,col)=>{for(const p of [a,b,c]){verts.push(...p);colors.push(...col)}};
+ // Tapered seven-sided trunk built as an explicit branch mesh, not a cylinder/cone.
+ for(let side=0;side<7;side++){
+  const a=side*Math.PI*2/7,b=(side+1)*Math.PI*2/7;
+  const br=.09+variant*.008,tr=.018;
+  const v0=[Math.cos(a)*br,0,Math.sin(a)*br],v1=[Math.cos(b)*br,0,Math.sin(b)*br];
+  const top0=[Math.cos(a)*tr,.91,Math.sin(a)*tr],top1=[Math.cos(b)*tr,.91,Math.sin(b)*tr];
+  face(v0,v1,top1,shade(wood,.78+side*.08));face(v0,top1,top0,shade(wood,.8+side*.08));
+ }
+ const levels=kind===1?7:kind===2?4:6,branches=kind===2?7:6;
+ for(let j=0;j<levels;j++){
+  const h=kind===2?.40+j*.11:.17+j*.105;
+  const range=kind===1?.45:.42,spread=(kind===2?.35:.45)*(1-j/levels*.79);
+  for(let n=0;n<branches;n++){
+   const a=(n+(j%2)*.47)*Math.PI*2/branches+variant*.27;
+   const radius=spread*(.75+.23*Math.sin(n*2.17+j));
+   const ax=Math.cos(a),az=Math.sin(a),sideX=-az,sideZ=ax;
+   const p=[ax*.03,h,az*.03],tip=[ax*radius,h+(kind===2?.11:-.012)+Math.sin(n+j)*.012,az*radius];
+   const twig=[ax*(radius*.82),h+.024,az*(radius*.82)];
+   const c=shade(wood,.75+j*.07);
+   face([p[0]+sideX*.018,p[1],p[2]+sideZ*.018],[p[0]-sideX*.018,p[1],p[2]-sideZ*.018],twig,c);
+   const leaf=shade(green,.76+(n%4)*.14+(j%3)*.065);
+   if(kind===2){
+    // Lobed deciduous leaf fans, complex asymmetrical polygon canopy.
+    for(let l=0;l<3;l++){
+     const theta=a+(l-1)*.4;
+     const r=.11+(j%2)*.055,tx=tip[0]+Math.cos(theta)*r,tz=tip[2]+Math.sin(theta)*r;
+     const leafP=[tx,tip[1]+.08+(l%2)*.065,tz];
+     face([tip[0]-sideX*.1,tip[1],tip[2]-sideZ*.1],[tip[0]+sideX*.1,tip[1],tip[2]+sideZ*.1],leafP,shade(leaf,.92+l*.065));
+     face(leafP,[tx+sideX*.11,tip[1]-.025,tz+sideZ*.11],[tx-sideX*.09,tip[1]-.04,tz-sideZ*.09],leaf);
+    }
+   }else{
+    // Long needles arranged in offset fan blades. Irregular, non-conical silhouette.
+    const flank=.09*(1-j/levels*.5);
+    const upper=[ax*radius*.53,h+.105,az*radius*.53],lower=[ax*radius*.6,h-.048,az*radius*.6];
+    face([p[0]+sideX*flank,p[1],p[2]+sideZ*flank],tip,upper,leaf);
+    face(tip,[p[0]-sideX*flank,p[1],p[2]-sideZ*flank],upper,shade(leaf,.82));
+    face(lower,tip,upper,shade(leaf,.7));
+   }
+  }
+ }
+ const g=new T.BufferGeometry();
+ g.setAttribute('position',new T.Float32BufferAttribute(verts,3));g.setAttribute('color',new T.Float32BufferAttribute(colors,3));
+ g.computeVertexNormals();g.computeBoundingSphere();naturalTreeCache.set(key,g);return g;
+}
+function scatterModeledTrees(count,kind,blocked,rand,terrain){
+ const low=save.settings.quality==='low',n=low?Math.ceil(count*.65):count;
+ for(let v=0;v<3;v++){
+  const part=Math.ceil(n/3),im=new T.InstancedMesh(naturalTreeGeometry(kind,v),naturalTreeMat,part),obj=new T.Object3D();
+  for(let i=0;i<part;i++){
+   let x=0,z=0;
+   for(let attempts=0;attempts<20;attempts++){x=(rand()-.5)*265;z=(rand()-.5)*265;if(!blocked(x,z,3)&&Math.hypot(x,z)>24)break}
+   const size=(kind===2?9:12)*(0.65+rand()*.62);
+   obj.position.set(x,terrain(x,z)-.05,z);
+   obj.rotation.set(0,rand()*6.283,0);obj.scale.set(size,size,size);obj.updateMatrix();im.setMatrixAt(i,obj.matrix);
+  }
+  im.instanceMatrix.needsUpdate=true;im.castShadow=!low;im.receiveShadow=true;
+  im.frustumCulled=false;world.add(im);
+ }
+}
+const roofForm=(()=>{
+ const verts=[],faces=[[0,2,4],[0,4,3],[1,5,2],[1,3,5],[0,1,2],[0,3,1],[3,4,5],[3,5,1]];
+ const p=[[-.5,0,-.5],[.5,0,-.5],[0,1,-.5],[-.5,0,.5],[0,1,.5],[.5,0,.5]];
+ for(const f of faces)for(const id of f)verts.push(...p[id]);
+ const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(verts,3));g.computeVertexNormals();return g;
+})();
+function gableRoof(x,y,z,w,h,d,color,angle=0){
+ const m=new T.Mesh(roofForm,mat(color));m.position.set(x,y,z);m.scale.set(w,h,d);m.rotation.y=angle;m.castShadow=true;m.receiveShadow=true;world.add(m);return m;
+}
+function hazardMaterial(type){
+ if(hazardMaterial.cache?.[type])return hazardMaterial.cache[type];
+ const water=type==='water';
+ const material=new T.ShaderMaterial({
+  uniforms:{uTime:{value:0},uWater:{value:water?1:0}},
+  vertexShader:'varying vec2 vUv; void main(){vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}',
+  fragmentShader:`precision mediump float;
+   varying vec2 vUv; uniform float uTime;uniform float uWater;
+   void main(){
+    vec2 p=vUv*12.;
+    float a=sin(p.x*2.3+sin(p.y*.7+uTime*.36)*1.8+uTime*.7);
+    float b=cos(p.y*1.7+p.x*.52-uTime*.45);
+    float wave=a*.55+b*.45;
+    float crack=smoothstep(.22,.72,wave);
+    vec3 lava=mix(vec3(.10,.018,.01),vec3(1.,.19,.025),crack);
+    lava+=vec3(.45,.18,.015)*pow(max(wave,0.),5.);
+    vec3 water=vec3(.055,.30,.39)+vec3(.08,.16,.17)*(wave*.5+.5);
+    vec3 c=mix(lava,water,uWater);
+    gl_FragColor=vec4(c,uWater>.5?.86:1.);
+   }`,
+  transparent:water,side:T.DoubleSide,depthWrite:!water
+ });
+ hazardMaterial.cache??={};hazardMaterial.cache[type]=material;return material;
+}
+const hazardGeo=new T.PlaneGeometry(1,1);
+function hazardPatch(x,z,w,d,type){const m=new T.Mesh(hazardGeo,hazardMaterial(type));m.rotation.x=-Math.PI/2;m.position.set(x,terrain(x,z)+.055,z);m.scale.set(w,d,1);m.renderOrder=1;world.add(m);return m}
+function biomeRubble(idx,low,rand,terrain){
+ if(idx===6)return;
+ const palette=[0x6c735d,0xa08762,0x9da6a9,0x40425a,0x71645f,0x332d30,0x747b89,0x5a6e72];
+ const cnt=low?48:save.settings.quality==='high'?165:95;
+ for(let variant=0;variant<3;variant++){
+  const n=Math.ceil(cnt/3),geometry=rockGeometry(variant,low),m=new T.InstancedMesh(geometry,stoneMaterial(palette[idx]),n),dummy=new T.Object3D();
+  for(let i=0;i<n;i++){
+   let x=(rand()-.5)*280,z=(rand()-.5)*280;if(Math.abs(x)<18||Math.abs(z)<18){x+=27;z-=29}
+   const r=.35+Math.pow(rand(),2)*2.8;
+   dummy.position.set(x,terrain(x,z)+r*.35,z);dummy.rotation.set((rand()-.5)*.6,rand()*6.283,(rand()-.5)*.6);
+   dummy.scale.set(r*(.8+rand()*.6),r*(.4+rand()*.6),r*(.7+rand()*.6));dummy.updateMatrix();m.setMatrixAt(i,dummy.matrix);
+  }
+  m.instanceMatrix.needsUpdate=true;m.castShadow=false;m.receiveShadow=true;world.add(m);
+ }
+}
+
 function buildMap(idx,garage=false){
  clearWorld();seed=9281+idx*701;scene.fog.density=.0035;
  const palettes=[
@@ -216,7 +336,8 @@ function buildMap(idx,garage=false){
  const [groundColor,sky,stone]=palettes[idx]||palettes[0];
  scene.background.set(sky);scene.fog.color.set(sky);
  if(idx===6)scene.fog.density=.0015;
- const groundGeo=new T.PlaneGeometry(400,400,48,48);groundGeo.rotateX(-Math.PI/2);
+ const terrainSegments=save.settings.quality==='high'?104:save.settings.quality==='low'?36:64;
+ const groundGeo=new T.PlaneGeometry(400,400,terrainSegments,terrainSegments);groundGeo.rotateX(-Math.PI/2);
  const ps=groundGeo.attributes.position;
  for(let i=0;i<ps.count;i++){const x=ps.getX(i),z=ps.getZ(i);let y=terrain(x,z)-.12;
   if(idx===5)y+=.35*Math.sin(x*.14+Math.cos(z*.1));
@@ -259,16 +380,15 @@ function buildMap(idx,garage=false){
  const obstacle=(x,z,r)=>obstacles.push({x,z,r});
  // Each arena has its own architecture, silhouettes, terrain palette and landmarks.
  if(idx===0){ // Valley: timber village, forest, wooden bridge, watchtower.
-  for(let i=0;i<Math.round(42*density);i++){const p=point();if(!p)continue;const [x,z]=p;let h=5+rand()*5;
-   cyl(x,h*.4,z,.45,h*.8,0x5c4c35);mesh('cone',0x31553b,x,h,z,2.8,h*.9,2.8);if(i%6===0)rock(x+3,z+2,2);
-  }
-  for(let i=0;i<13;i++){const p=point(30,115);if(!p)continue;const [x,z]=p;box(x,2,z,7,4,6,0x8c7658);mesh('cone',0x5b4a3d,x,5,z,5,3,4);for(let j=-1;j<=1;j++)box(x+j*2,2.2,z+3.04,.7,1,.12,0x273f45);obstacle(x,z,5)}
-  for(let x of [-60,60]){for(let z of [-40,40]){cyl(x,6,z,.6,12,0x574d39);box(x,12,z,7,.7,7,0x705a3b);mesh('cone',0x47543c,x,14,z,5,3,5)}}
+  scatterModeledTrees(Math.round(70*density),2,blocked,rand,terrain);
+  scatterModeledTrees(Math.round(36*density),0,blocked,rand,terrain);
+  for(let i=0;i<13;i++){const p=point(30,115);if(!p)continue;const [x,z]=p;box(x,2,z,7,4,6,0x8c7658);gableRoof(x,4,z,8.6,2.8,7.5,0x594a38);for(let j=-1;j<=1;j++)box(x+j*2,2.2,z+3.04,.7,1,.12,0x273f45);obstacle(x,z,5)}
+  for(let x of [-60,60]){for(let z of [-40,40]){cyl(x,6,z,.6,12,0x574d39);box(x,12,z,7,.7,7,0x705a3b);gableRoof(x,12.3,z,8.2,2.8,8.2,0x47543c)}}
   for(let i=-6;i<=6;i++)box(82,.2,i*2.3,14,.35,2,0x82694b);
  }else if(idx===1){ // Desert: sandstone canyon, dunes, ancient ruins, refinery.
   for(let i=0;i<35*density;i++){const p=point();if(!p)continue;const [x,z]=p;const h=4+rand()*18;
    if(i%3===0){cyl(x,h/2,z,2.2,h,0x9a7652);box(x,h,z,6,1,6,0xc5a273)}
-   else{mesh('cone',0x9b7653,x,h*.45,z,3+rand()*4,h,3+rand()*4)}
+   else{cliff(x,z,3+rand()*4,h,3+rand()*4,0x9b7653)}
    if(i%4===0)obstacle(x,z,4);
   }
   for(let i=0;i<6;i++){const x=-95+i*33,z=75;box(x,2,z,12,4,11,0x9e8061);box(x,5,z,13,2,12,0xc3a177);
@@ -276,9 +396,7 @@ function buildMap(idx,garage=false){
   for(let i=0;i<5;i++){let x=90,z=-85+i*32;cyl(x,7,z,3,14,0x77716a);cyl(x,15,z,3.8,2,0xc0a46f);box(x,19,z,.2,7,.2,0x4d514c)}
  }else if(idx===2){ // Snow: alpine fortress, frozen lake, radar station.
   box(-76,-.08,60,75,.16,65,0x8cc6d7);
-  for(let i=0;i<34*density;i++){const p=point();if(!p)continue;const [x,z]=p;const h=5+rand()*8;
-   cyl(x,h*.4,z,.35,h*.8,0x4c514f);for(let j=0;j<3;j++)mesh('cone',0x476c64,x,h*.4+j*h*.22,z,2.6-j*.4,h*.48,2.6-j*.4);
-  }
+  scatterModeledTrees(Math.round(80*density),1,blocked,rand,terrain);
   for(let i=0;i<8;i++){const x=-105+i*28,z=-90;box(x,4,z,12,8,10,0x7f929c);box(x,8.4,z,13,.8,11,0xb4c5cd);
    for(let j=-1;j<=1;j++)box(x+j*3,5,z+5.1,1.3,2,.2,0x293a48);obstacle(x,z,7)}
   for(let i=0;i<5;i++){let x=60+i*13,z=82;cliff(x,z,10,24,10,0xdde8eb)}
@@ -300,11 +418,11 @@ function buildMap(idx,garage=false){
   for(let i=0;i<15;i++){let x=(rand()-.5)*250,z=(rand()-.5)*250;if(blocked(x,z))continue;box(x,.4,z,3+rand()*5,.8,2,0x494743)}
  }else if(idx===5){ // Volcano: huge caldera, lava rivers, basalt pillars, ash vents.
   for(let i=0;i<33*density;i++){const p=point();if(!p)continue;const [x,z]=p;const h=6+rand()*17;
-   mesh('cone',0x2a272b,x,h*.48,z,3+rand()*5,h,3+rand()*5);
+   cliff(x,z,3+rand()*5,h,3+rand()*5,0x2a272b);
    if(i%3===0){orb(x,h,z,1.5,0xf36c22);obstacle(x,z,5)}
   }
-  for(let i=0;i<13;i++){const x=-120+i*20,z=85+Math.sin(i*.8)*9;box(x,.08,z,21,.14,9,0xff4b09);box(x,.18,z+5,21,.22,1.1,0x3a2829)}
-  for(let i=0;i<6;i++){let x=-95+i*38,z=-100;mesh('cone',0x1c1d22,x,18,z,11,36,11);orb(x,35,z,3,0xff5e1c)}
+  for(let i=0;i<13;i++){const x=-120+i*20,z=85+Math.sin(i*.8)*9;hazardPatch(x,z,21,8.6,'lava');box(x,.18,z+5,21,.22,1.1,0x3a2829)}
+  for(let i=0;i<6;i++){let x=-95+i*38,z=-100;cliff(x,z,11,36,11,0x1c1d22);orb(x,35,z,3,0xff5e1c)}
   for(let i=0;i<8;i++){let x=90,z=-95+i*27;cyl(x,6,z,2.5,12,0x39353a);orb(x,12,z,2,0xffa047)}
  }else if(idx===6){ // MOON / ARTEMIS OUTPOST: authored landmarks + modular high-detail geometry.
   scene.background.set(0x070b19);scene.fog.color.set(0x171f31);scene.fog.density=.0013;
@@ -395,7 +513,7 @@ function buildMap(idx,garage=false){
    beam(x,4.15,z,9.5,.25,6.5,0xc0cbd2);
   }
   // Surface rock scatter, using instanced geometry to reduce draw calls.
-  const count=Math.round(130*density),inst=new T.InstancedMesh(geo.sphere,mat(0x656c7b),count),dummy=new T.Object3D();
+  const count=Math.round(130*density),inst=new T.InstancedMesh(rockGeometry(4,low),stoneMaterial(0x656c7b),count),dummy=new T.Object3D();
   for(let i=0;i<count;i++){let x=(rand()-.5)*290,z=(rand()-.5)*290,r=.3+rand()*1.6;
    if(Math.abs(x)<14||Math.abs(z)<14){x+=20;z+=20}
    dummy.position.set(x,r*.23,z);dummy.scale.set(r,r*.55,r*.85);dummy.rotation.set(rand(),rand()*6,rand());dummy.updateMatrix();inst.setMatrixAt(i,dummy.matrix)}
@@ -461,7 +579,7 @@ function buildMap(idx,garage=false){
   };
   hangar(-77,-69,1.05);
  }else if(idx===7){ // Flooded port: water basins, container yards, gantry cranes, ship.
-  for(let x of [-95,95])box(x,.04,0,25,.08,260,0x2c829a);
+  for(let x of [-95,95])hazardPatch(x,0,25,260,'water');
   for(let i=0;i<30*density;i++){const p=point();if(!p)continue;const [x,z]=p;
    const c=[0xb75c42,0x4d8296,0xc3a357,0x617c65][i%4];
    for(let k=0;k<2;k++){box(x,1.35+k*2.8,z,7,2.6,3,c);for(let j=-2;j<=2;j++)box(x+j*1.15,1.3+k*2.8,z+1.56,.12,2.1,.1,0x343f43)}
@@ -472,6 +590,7 @@ function buildMap(idx,garage=false){
   box(88,1.3,85,55,2.5,17,0x424c56);box(85,5,85,21,6,14,0xd6d9cf);
   for(let i=0;i<8;i++)box(-115+i*32,.15,105,23,.3,9,0x6b665b);
  }
+ biomeRubble(idx,low,rand,terrain);
  // Map-specific boundary silhouettes; no shared fake village/forest overlay.
  for(let i=0;i<20;i++){const a=i*Math.PI/10,r=170+rand()*24;
   const x=Math.sin(a)*r,z=Math.cos(a)*r;
@@ -583,7 +702,7 @@ function end(win){
 }
 function pause(){if(state==='battle'){state='paused';resetInput();document.exitPointerLock?.();$('overlay').hidden=false;$('overlay').innerHTML='<div class="dialog"><div class="eyebrow">ОПЕРАЦИЯ ПРИОСТАНОВЛЕНА</div><h2>Пауза</h2><button id="resume" class="primary">Продолжить</button><button id="pauseSettings">Настройки</button><button id="exitBattle">Завершить бой</button></div>';$('resume').onclick=pause;$('pauseSettings').onclick=openSettings;$('exitBattle').onclick=()=>end(false)}else if(state==='paused'){state='battle';$('overlay').hidden=true}}
 function hud(){const p=player;$('mgInfo').textContent=`КП-12.7  ${p.mg.belt} / ${p.mg.reserve} · ${p.mg.reloading>0?'ЛЕНТА '+p.mg.reloading.toFixed(1)+'с':p.mg.overheated?'ПЕРЕГРЕВ':Math.round(p.mg.heat)+'°'}`;$('mgHeat').style.width=p.mg.heat+'%';$('mg').classList.toggle('hot',p.mg.overheated);$('repair').innerHTML='＋<small>РЕМОНТ ×'+p.repairs+'</small>';const direction=new T.Vector3(Math.sin(p.turretYaw)*Math.cos(p.pitch),Math.sin(p.pitch),Math.cos(p.turretYaw)*Math.cos(p.pitch));const bore=new T.Vector3(p.x,terrain(p.x,p.z)+2.1,p.z).addScaledVector(direction,60).project(camera);$('bore').style.left=(bore.x*.5+.5)*100+'%';$('bore').style.top=(-bore.y*.5+.5)*100+'%';$('bore').style.opacity=Math.abs(angle(p.turretYaw-aimYaw))<1?'1':'0';$('hp').textContent=`${Math.ceil(p.hp)} / ${Math.round(p.maxHp)}`;$('hpbar').style.width=p.hp/p.maxHp*100+'%';$('modules').textContent=[p.track?'ГУСЕНИЦА ⚠':'',p.engine?'ДВИГАТЕЛЬ ⚠':''].join(' ');$('speed').textContent=Math.round(Math.abs(p.speed)*3.6)+' км/ч';$('reload').textContent=p.cool>0?'ПЕРЕЗАРЯДКА '+p.cool.toFixed(1)+'с':'ОРУДИЕ ГОТОВО';$('ammoInfo').textContent=AMMO_NAMES[p.ammo]+' · '+p.rounds[p.ammo];$('fire').style.background=`conic-gradient(#c9df7a66 ${100*(1-p.cool/p.reload)}%,#19291d99 0)`;const allies=tanks.filter(t=>t.team===0&&!t.dead).length,enemies=tanks.filter(t=>t.team===1&&!t.dead).length;$('score').textContent=`${allies} СОЮЗНИКИ  /  ${enemies} ПРОТИВНИКИ${mode==='survival'?' · ВОЛНА '+wave:mode==='flag'?' · 🚩 '+(flagCarrier?(flagCarrier.isPlayer?'ТВОЙ ФЛАГ':'ФЛАГ ВРАГА'):'ФЛАГ СВОБОДЕН')+' · '+Math.ceil(flagTimer)+'с':''}`;const c=$('mini').getContext('2d');c.clearRect(0,0,180,180);c.fillStyle='#52604b';obstacles.forEach(o=>c.fillRect(90+o.x*.6-o.r*.6,90-o.z*.6-o.r*.6,o.r*1.2,o.r*1.2));tanks.forEach(t=>{if(t.dead)return;c.fillStyle=t.isPlayer?'#ffffff':t.team?'#ee8768':'#d4f070';c.beginPath();c.arc(90+t.x*.6,90-t.z*.6,t.isPlayer?4:3,0,7);c.fill()});c.strokeStyle='#fff';c.beginPath();c.moveTo(90+p.x*.6,90-p.z*.6);c.lineTo(90+p.x*.6+Math.sin(aimYaw)*15,90-p.z*.6-Math.cos(aimYaw)*15);c.stroke()}
-function applySettings(){const s=save.settings;document.documentElement.style.setProperty('--size',s.size);document.documentElement.style.setProperty('--opacity',s.opacity);renderer.shadowMap.enabled=s.quality!=='low';const shadowSize=s.quality==='high'?2048:1024;if(sun.shadow.mapSize.x!==shadowSize){sun.shadow.mapSize.set(shadowSize,shadowSize);sun.shadow.map?.dispose();sun.shadow.map=null}renderer.setPixelRatio(Math.min(devicePixelRatio,(mobile?s.quality==='high'?1.25:s.quality==='medium'?1:.75:s.quality==='high'?1.75:s.quality==='medium'?1.35:.85))*adaptive);for(const [id,p]of Object.entries(s.layout||{})){if($(id))Object.assign($(id).style,{left:p.x+'%',top:p.y+'%',right:'auto',bottom:'auto'})}persist()}
+function applySettings(){const s=save.settings;document.documentElement.style.setProperty('--size',s.size);document.documentElement.style.setProperty('--opacity',s.opacity);renderer.shadowMap.enabled=s.quality!=='low';const shadowSize=s.quality==='high'&&!mobile?2048:1024;if(sun.shadow.mapSize.x!==shadowSize){sun.shadow.mapSize.set(shadowSize,shadowSize);sun.shadow.map?.dispose();sun.shadow.map=null}renderer.setPixelRatio(Math.min(devicePixelRatio,(mobile?s.quality==='high'?1.25:s.quality==='medium'?1:.75:s.quality==='high'?1.75:s.quality==='medium'?1.35:.85))*adaptive);for(const [id,p]of Object.entries(s.layout||{})){if($(id))Object.assign($(id).style,{left:p.x+'%',top:p.y+'%',right:'auto',bottom:'auto'})}persist()}
 function openSettings(){if(state==='battle')pause();$('settings').hidden=false;const s=save.settings;$('settingsFields').innerHTML=`${[['sensitivity','Чувствительность обзора',.3,2.5,.1],['aimSensitivity','Чувствительность прицела',.2,1.5,.05],['deadzone','Мёртвая зона джойстика',.02,.25,.01],['smoothing','Скорость камеры',4,20,1],['size','Размер управления',.7,1.5,.05],['opacity','Прозрачность',.25,1,.05]].map(([k,n,a,b,step])=>`<label>${n}<input data-setting="${k}" type="range" min="${a}" max="${b}" step="${step}" value="${s[k]}"></label>`).join('')}${[['assist','Помощь в прицеливании'],['invert','Инверсия вертикальной оси'],['invertJoystick','Инверсия поворота джойстика (лево / право)'],['sound','Звуки и музыка']].map(([k,n])=>`<label>${n}<input data-setting="${k}" type="checkbox" ${s[k]?'checked':''}></label>`).join('')}<label>Графика<select data-setting="quality"><option value="low">Низкая</option><option value="medium">Средняя</option><option value="high">Высокая</option></select></label>`;document.querySelector('[data-setting="quality"]').value=s.quality;document.querySelectorAll('[data-setting]').forEach(el=>el.oninput=()=>{s[el.dataset.setting]=el.type==='checkbox'?el.checked:el.type==='range'?+el.value:el.value;applySettings()})}
 $('settingsOpen').onclick=openSettings;$('settingsClose').onclick=()=>{$('settings').hidden=true};$('layout').onclick=()=>{editing=true;$('settings').hidden=true;$('overlay').hidden=true;$('garage').hidden=true;$('hud').hidden=false;$('layoutDone').hidden=false;document.body.classList.remove('desktop')};$('layoutDone').onclick=e=>{if(e.target.tagName!=='BUTTON')return;editing=false;persist();$('layoutDone').hidden=true;document.body.classList.toggle('desktop',!mobile);if(state==='garage'){$('garage').hidden=false;$('hud').hidden=true}else if(state==='paused'){$('overlay').hidden=false}openSettings()};$('resetLayout').onclick=()=>{save.settings.layout={};document.querySelectorAll('.control').forEach(e=>{e.style.left=e.style.right=e.style.top=e.style.bottom=''});applySettings()};$('start').onclick=startBattle;$('pause').onclick=pause;$('repair').onclick=repair;$('aim').onclick=setZoom;$('ammo').onclick=changeAmmo;$('lock').onclick=()=>{if(editing)return;autoLock=!autoLock;$('lock').style.color=autoLock?'#e5fa72':'';notify(autoLock?'ЗАХВАТ ВКЛЮЧЁН':'ЗАХВАТ ОТКЛЮЧЁН')};$('mini').onclick=()=>{$('mini').style.width=$('mini').style.width?'':'240px';$('mini').style.height=$('mini').style.height?'':'240px'};
 function resetInput(){Object.keys(keys).forEach(k=>delete keys[k]);joy.x=joy.y=0;fireHeld=false;mgHeld=false;drag=null;joyPointer=null;cameraPointers.clear();pointers.clear();$('stick').style.transform=''}window.addEventListener('blur',()=>{resetInput();if(state==='battle')pause()});document.addEventListener('visibilitychange',()=>{if(document.hidden){resetInput();if(state==='battle')pause()}});
@@ -603,7 +722,8 @@ let last=performance.now(),fpsAccum=0,frames=0,adaptive=1;const pixelCap=Math.mi
  camera.position.set(tourCenter.x+Math.sin(tourYaw)*cp*tourDistance,tourCenter.y+Math.sin(tourPitch)*tourDistance,tourCenter.z+Math.cos(tourYaw)*cp*tourDistance);
  camera.lookAt(tourCenter);camera.fov=55;camera.updateProjectionMatrix();
  sun.position.set(-45,70,35);sun.target.position.set(0,0,0);
- }else if(state==='garage'){const a=garageYaw+Math.sin(gameTime*.12)*.05;camera.position.set(Math.sin(a)*12,6.2,Math.cos(a)*12);camera.lookAt(0,1,0);camera.fov=55;camera.updateProjectionMatrix();preview.root.rotation.y=.3}else if(player){if(state==='battle'&&!editing){elapsed+=dt;tanks.forEach(t=>updateTank(t,dt));updateShots(dt);updateEffects(dt);if(mode==='flag')updateFlag(dt);if(state==='battle'&&player.dead)end(false);else if(state==='battle'&&!tanks.some(t=>t.team===1&&!t.dead)){if(mode==='flag'){end(true)}else if(mode==='survival'){wave++;player.hp=Math.min(player.maxHp,player.hp+player.maxHp*.2);player.rounds=player.rounds.map((n,i)=>n+[20,7,5,3,2][i]);spawnWave()}else end(true)}hud();musicTime+=dt;if(musicTime>4){musicTime=0;sound('music')}}viewYaw+=angle(aimYaw-viewYaw)*(1-Math.exp(-dt*save.settings.smoothing));viewPitch=damp(viewPitch,aimPitch,save.settings.smoothing,dt);const base=new T.Vector3(player.x,terrain(player.x,player.z)+2.2,player.z),dir=new T.Vector3(Math.sin(viewYaw)*Math.cos(viewPitch),Math.sin(viewPitch),Math.cos(viewYaw)*Math.cos(viewPitch));if(zoom){desiredPos.copy(base).addScaledVector(dir,4.8);camera.position.copy(desiredPos);look.copy(base).addScaledVector(dir,160)}else{desiredPos.copy(base).addScaledVector(dir,-12);desiredPos.y+=5;camera.position.lerp(desiredPos,1-Math.exp(-dt*7));look.copy(base).addScaledVector(dir,60)}camera.lookAt(look);camera.fov=zoom?[55,30,17,10][zoom]:55;camera.updateProjectionMatrix();player.root.visible=!zoom;sun.position.set(player.x-45,70,player.z+35);sun.target.position.set(player.x,0,player.z)}if(engineGain){engineGain.gain.setTargetAtTime(state==='battle'&&save.settings.sound?.018:0,audio.currentTime,.1);engineOsc.frequency.setTargetAtTime(35+Math.abs(player?.speed||0)*3,audio.currentTime,.1)}sky.position.copy(camera.position);renderer.render(scene,camera);fpsAccum+=dt;frames++;if(fpsAccum>3){const fps=frames/fpsAccum;if((state==='battle'||state==='tour')&&fps<29&&adaptive>.6){adaptive=Math.max(.6,adaptive-.1);renderer.setPixelRatio(pixelCap*adaptive)}else if((state==='battle'||state==='tour')&&fps>53&&adaptive<1){adaptive=Math.min(1,adaptive+.05);renderer.setPixelRatio(pixelCap*adaptive)}window.STEEL_METRICS={fps:Math.round(fps),drawCalls:renderer.info.render.calls,triangles:renderer.info.render.triangles,tanks:tanks.length,particles:particles.length,state};fpsAccum=0;frames=0}}
+ }else if(state==='garage'){const a=garageYaw+Math.sin(gameTime*.12)*.05;camera.position.set(Math.sin(a)*12,6.2,Math.cos(a)*12);camera.lookAt(0,1,0);camera.fov=55;camera.updateProjectionMatrix();preview.root.rotation.y=.3}else if(player){if(state==='battle'&&!editing){elapsed+=dt;tanks.forEach(t=>updateTank(t,dt));updateShots(dt);updateEffects(dt);if(mode==='flag')updateFlag(dt);if(state==='battle'&&player.dead)end(false);else if(state==='battle'&&!tanks.some(t=>t.team===1&&!t.dead)){if(mode==='flag'){end(true)}else if(mode==='survival'){wave++;player.hp=Math.min(player.maxHp,player.hp+player.maxHp*.2);player.rounds=player.rounds.map((n,i)=>n+[20,7,5,3,2][i]);spawnWave()}else end(true)}hud();musicTime+=dt;if(musicTime>4){musicTime=0;sound('music')}}viewYaw+=angle(aimYaw-viewYaw)*(1-Math.exp(-dt*save.settings.smoothing));viewPitch=damp(viewPitch,aimPitch,save.settings.smoothing,dt);const base=new T.Vector3(player.x,terrain(player.x,player.z)+2.2,player.z),dir=new T.Vector3(Math.sin(viewYaw)*Math.cos(viewPitch),Math.sin(viewPitch),Math.cos(viewYaw)*Math.cos(viewPitch));if(zoom){desiredPos.copy(base).addScaledVector(dir,4.8);camera.position.copy(desiredPos);look.copy(base).addScaledVector(dir,160)}else{desiredPos.copy(base).addScaledVector(dir,-12);desiredPos.y+=5;camera.position.lerp(desiredPos,1-Math.exp(-dt*7));look.copy(base).addScaledVector(dir,60)}camera.lookAt(look);camera.fov=zoom?[55,30,17,10][zoom]:55;camera.updateProjectionMatrix();player.root.visible=!zoom;sun.position.set(player.x-45,70,player.z+35);sun.target.position.set(player.x,0,player.z)}if(engineGain){engineGain.gain.setTargetAtTime(state==='battle'&&save.settings.sound?.018:0,audio.currentTime,.1);engineOsc.frequency.setTargetAtTime(35+Math.abs(player?.speed||0)*3,audio.currentTime,.1)}if(hazardMaterial.cache)for(const material of Object.values(hazardMaterial.cache))material.uniforms.uTime.value=gameTime;
+ sky.position.copy(camera.position);renderer.render(scene,camera);fpsAccum+=dt;frames++;if(fpsAccum>3){const fps=frames/fpsAccum;if((state==='battle'||state==='tour')&&fps<29&&adaptive>.6){adaptive=Math.max(.6,adaptive-.1);renderer.setPixelRatio(pixelCap*adaptive)}else if((state==='battle'||state==='tour')&&fps>53&&adaptive<1){adaptive=Math.min(1,adaptive+.05);renderer.setPixelRatio(pixelCap*adaptive)}window.STEEL_METRICS={fps:Math.round(fps),drawCalls:renderer.info.render.calls,triangles:renderer.info.render.triangles,tanks:tanks.length,particles:particles.length,state};fpsAccum=0;frames=0}}
 
 
 function initFlag(){flagCarrier=null;flagTimer=0;flagTransferCooldown=0;if(flagMesh){world.remove(flagMesh);flagMesh=null}flagMesh=new T.Group();const pole=mesh('box',0xe5e3cb,0,2,0,.14,4,.14,flagMesh);const cloth=mesh('box',0xffc439,.75,3.65,0,1.5,.85,.1,flagMesh);cloth.material=mat(0xffc439);flagMesh.position.set(0,terrain(0,0),0);world.add(flagMesh)}

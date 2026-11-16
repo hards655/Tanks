@@ -84,6 +84,28 @@ function environmentDetail(idx,garageMode=false){
  }
 }
 
+
+// Stylized AAA-comic atmosphere: individually graded lighting and inked landmarks.
+function applyComicArt(idx,garageMode=false){
+ const themes=[[0xffdfad,0x9dbdb0,1.12],[0xffbc83,0xd8a37b,1.2],[0xd8ecff,0x91b7d7,1.13],[0xc38dff,0x565c9c,1.22],[0xffc69b,0xa18a7c,1.1],[0xff8754,0x9c4e42,1.22],[0xe0ecff,0x587aab,1.05],[0xb0e8df,0x7caeb2,1.1]];
+ const [key,fill,exposure]=garageMode?[0xffe5b2,0x8497a7,1.1]:themes[idx];
+ sun.color.set(key);sun.intensity=garageMode?2.7:3.2;sun.position.set(-65,idx===6?105:75,idx===3?-35:45);
+ renderer.toneMappingExposure=exposure;
+ scene.children.forEach(o=>{if(o.isHemisphereLight){o.color.set(fill);o.groundColor.set(idx===6?0x12182b:0x3c3b3b);o.intensity=idx===6?1.25:1.9}});
+ if(sky?.material?.uniforms){
+  sky.material.uniforms.top.value.set(garageMode?0x1a2733:[0x4b809a,0xa65c4d,0x639bc6,0x151c44,0x9a6257,0x542630,0x060a16,0x2e5d78][idx]);
+  sky.material.uniforms.bottom.value.set(garageMode?0x38434a:[0xc8d2a6,0xf0b57d,0xb4d6e7,0x6e4a86,0xc7a086,0xa74b2e,0x101829,0x8bbab8][idx]);
+ }
+ const max=save.settings.quality==='low'?12:48;let n=0;
+ for(const o of world.children){
+  if(n>=max||!o.isMesh||o.isInstancedMesh||o.userData.ownedGeometry)continue;
+  if(Math.max(o.scale.x,o.scale.y,o.scale.z)<5)continue;
+  if(![geo.box,geo.cone,geo.cyl].includes(o.geometry))continue;
+  const edge=new T.LineSegments(new T.EdgesGeometry(o.geometry,30),new T.LineBasicMaterial({color:0x15131d,opacity:.82,transparent:true,depthWrite:false}));
+  edge.scale.setScalar(1.026);o.add(edge);o.userData.comicLandmark=true;n++;
+ }
+}
+
 function buildMap(idx,garage=false){
  clearWorld();seed=9281+idx*701;scene.fog.density=.0035;
  const palettes=[
@@ -105,7 +127,7 @@ function buildMap(idx,garage=false){
  groundGeo.computeVertexNormals();
  const ground=new T.Mesh(groundGeo,new T.MeshStandardMaterial({color:groundColor,roughness:1}));
  ground.receiveShadow=true;ground.userData.ownedGeometry=true;ground.userData.ownedMaterial=true;world.add(ground);
- if(garage){mesh('cyl',0x535c4d,0,-.15,0,6,.3,6);environmentDetail(0,true);return}
+ if(garage){mesh('cyl',0x535c4d,0,-.15,0,6,.3,6);environmentDetail(0,true);applyComicArt(0,true);return}
  const low=save.settings.quality==='low',density=low?.55:1;
  const box=(x,y,z,w,h,d,c)=>mesh('box',c,x,y,z,w,h,d);
  const cyl=(x,y,z,r,h,c)=>mesh('cyl',c,x,y,z,r,h,r);
@@ -263,7 +285,7 @@ function buildMap(idx,garage=false){
  // Traversable cross-shaped combat routes; objects avoid central lanes.
  box(0,-.07,0,12,.06,290,idx===6?0x747e8b:idx===5?0x3a3030:idx===7?0x737d7d:groundColor);
  box(0,-.07,0,290,.06,11,idx===6?0x747e8b:idx===5?0x3a3030:idx===7?0x737d7d:groundColor);
- batchRigid(world);
+ applyComicArt(idx,false);batchRigid(world);
 }
 function makeTank(type,team,x,z,isPlayer=false){const visual=model(type,team),u=isPlayer?(save.upgrades[type]||[0,0,0]):[0,0,0],d=TYPES[type];const t={...visual,type,team,isPlayer,x,z,yaw:team?Math.PI:0,turretYaw:team?Math.PI:0,pitch:0,hp:d.hp*(1+.12*u[0]),maxHp:d.hp*(1+.12*u[0]),armor:d.armor*(1+.12*u[0]),maxSpeed:d.speed*(1+.08*u[1]),damage:d.damage*(1+.12*u[2]),reload:d.reload,speed:0,cool:1,dead:false,track:0,engine:0,ammo:0,rounds:[50,15,12],mg:createMG(),repairs:1,inputX:0,inputY:0,think:rand(),target:null,steer:0,throttle:0};if(isPlayer){const used=consumeLoadout(save);t.repairs=1+(used.includes('repairKit')?1:0);if(used.includes('ammoCrate')){t.rounds=[70,23,18];t.mg=createMG(120)}if(used.includes('overdrive'))t.maxSpeed*=1.12;if(save.loadout.equipment.includes('rammer'))t.reload*=.85;persist()}t.root.position.set(x,terrain(x,z),z);world.add(t.root);tanks.push(t);return t}
 function garage(){state='garage';$('garage').hidden=false;$('hud').hidden=true;$('overlay').hidden=true;zoom=0;buildMap(0,true);preview=model(selected);world.add(preview.root);garageUI()}

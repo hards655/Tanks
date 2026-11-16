@@ -312,6 +312,66 @@ function buildMap(idx,garage=false){
    if(Math.abs(x)<14||Math.abs(z)<14){x+=20;z+=20}
    dummy.position.set(x,r*.23,z);dummy.scale.set(r,r*.55,r*.85);dummy.rotation.set(rand(),rand()*6,rand());dummy.updateMatrix();inst.setMatrixAt(i,dummy.matrix)}
   inst.castShadow=false;inst.receiveShadow=true;world.add(inst);
+
+  // Original CC-independent modular lunar industrial hangar asset.
+  // Authored in code: no third-party meshes, textures, or copyrighted game art.
+  const hangar=(hx,hz,scale=1)=>{
+   const g=new T.Group();g.position.set(hx,0,hz);g.scale.setScalar(scale);world.add(g);
+   const part=(shape,c,x,y,z,w,h,d)=>mesh(shape,c,x,y,z,w,h,d,g);
+   const steel=0x566271,edge=0x242e3c,trim=0x9eabb8,orange=0xd17b3d,glass=0x2c718a;
+   // Hollow structure, real open entrance and interior volume.
+   part('box',0x454d5b,0,.22,0,27,.44,23);
+   for(const side of [-1,1]){
+    part('box',steel,side*13.1,5.6,0,.85,10.8,23);
+    part('box',edge,side*13.6,6,0,.38,11.8,23.5);
+    for(let z=-10;z<=10;z+=5){
+     part('box',trim,side*13.8,5.7,z,.4,10.8,.52);
+     part('box',edge,side*13.98,3.4,z,.17,4.5,.8);
+     for(let y=2;y<=9;y+=2.5)part('box',orange,side*14.1,y,z,.12,.16,.7);
+    }
+    part('box',steel,side*11.4,11.6,0,3.2,1.1,23.5);
+    part('box',0x1d2835,side*12.7,9.1,0,.24,2.5,19);
+    for(let z=-8;z<=8;z+=4)part('box',glass,side*12.9,9.2,z,.3,1.1,2.2);
+   }
+   // Segmented gabled roof with diagonal truss supports.
+   for(const side of [-1,1]){
+    const roof=part('box',steel,side*6.8,13.25,0,14.7,.65,24.8);roof.rotation.z=side*-.24;
+    const seam=part('box',edge,side*6.8,13.7,0,14.8,.16,24.8);seam.rotation.z=side*-.24;
+    for(let z=-10;z<=10;z+=2.5){const rib=part('box',trim,side*6.8,13.9,z,14.5,.13,.18);rib.rotation.z=side*-.24}
+   }
+   part('box',trim,0,15,0,2.2,.7,25.2);
+   // Rear service wall, ducts, machinery and utility pipes.
+   part('box',steel,0,6,-11.3,26,11.5,.8);
+   for(let x=-9;x<=9;x+=6){
+    part('box',edge,x,7,-10.8,4.6,5.6,.32);
+    part('box',glass,x,7.8,-10.5,3.7,1.7,.15);
+    for(let j=0;j<5;j++)part('box',trim,x,5.2+j*.4,-10.45,4,.12,.13);
+   }
+   // Entrance portal: recessed jambs, layered blast-door leaves.
+   for(const side of [-1,1]){
+    part('box',edge,side*12.7,6.5,11.8,1.7,12.6,1.6);
+    part('box',trim,side*12.65,6.5,12.7,1.8,12.8,.3);
+    part('box',orange,side*12.6,2,12.95,1.5,.35,.16);
+    for(let k=0;k<5;k++)part('box',0x394554,side*(10.9+k*.35),5.2,12.2,.26,9.2,.55);
+   }
+   part('box',edge,0,12.9,12,26,1.8,2);
+   part('box',orange,0,12.8,13.05,8,.35,.18);
+   for(let x=-9;x<=9;x+=3){part('box',0xe0d1a4,x,12.7,13.2,1.1,.38,.16)}
+   // Overhead service crane and movable-looking suspended hook.
+   for(const side of [-1,1])part('box',orange,side*8.8,10.9,0,.5,.7,20);
+   part('box',trim,0,11.1,-1,18,.9,1.1);
+   part('box',edge,0,9.5,-1,.25,2.6,.25);
+   part('cyl',orange,0,8,-1,.65,.25,.65);
+   // Air handling rooftop stacks and safety collars.
+   for(const x of [-8,8])for(const z of [-5,5]){
+    part('cyl',edge,x,15.7,z,1.2,2.1,1.2);
+    part('cyl',trim,x,16.8,z,1.5,.28,1.5);
+    part('box',edge,x,17.1,z,3.4,.2,3.4);
+   }
+   // PBR metallic accents, minimal GPU cost from shared geometry.
+   obstacle(hx,hz-11*scale,12*scale);
+  };
+  hangar(-77,-69,1.05);
  }else if(idx===7){ // Flooded port: water basins, container yards, gantry cranes, ship.
   for(let x of [-95,95])box(x,.04,0,25,.08,260,0x2c829a);
   for(let i=0;i<30*density;i++){const p=point();if(!p)continue;const [x,z]=p;

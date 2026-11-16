@@ -31,3 +31,25 @@ h1 span{color:#ffbd45;text-shadow:4px 5px 0 #100b1a}
 #garage #tankCards{width:100%;max-width:760px;overflow-x:auto}
 #garage .tankCard{min-width:90px}
 @media(max-height:520px){#garage footer{bottom:4px;left:12px;right:12px;max-height:53dvh}#garage .deploy{gap:5px}#garage #start{padding:9px 12px}#garage .tankCard{padding:7px}}
+
+/* Layout 3: positions and hit rectangles are owned by controls.js. */
+.control{backdrop-filter:none;box-shadow:0 3px 0 #0b101bcc;border:2px solid #c3c9ad;font-size:22px;will-change:auto;-webkit-tap-highlight-color:transparent;user-select:none}
+.control small{font-size:8px;letter-spacing:0;line-height:1.1;white-space:nowrap;pointer-events:none}
+#fire{font-size:32px;border-color:#ffce48;background:#786232b8}
+#mini{top:12px;right:76px;width:80px;height:80px;pointer-events:none;opacity:.9}
+.topHud{top:12px;left:16px;right:16px;pointer-events:none}.topHud #pause{pointer-events:auto;width:48px;height:48px;padding:0}
+.health{width:170px;padding:9px}.health b{font-size:16px}.health small{font-size:9px}.health span{font-size:8px}
+.score{position:absolute;left:50%;transform:translateX(-50%);max-width:calc(100% - 370px);font-size:10px;letter-spacing:.3px;padding:10px;line-height:1.4}
+#notice{top:110px;font-size:11px;padding:0 20%;pointer-events:none}
+#mgStatus{top:94px;left:16px;bottom:auto;width:170px;font-size:9px}
+.bottomInfo{bottom:4px;left:50%;font-size:9px;gap:7px;padding:6px;max-width:190px;white-space:nowrap;pointer-events:none}
+#pcHelp{bottom:39px;left:26%;width:40%;font-size:9px;pointer-events:none}
+#rankPanel{top:80px}.intro{top:170px}h1{font-size:clamp(38px,5vw,72px)}
+#paintPreview{position:absolute;z-index:8;left:25%;right:25%;top:15%;text-align:center;padding:14px;background:#251b30e8;border:2px solid #ffce48;box-shadow:5px 5px #0b0912;font-size:13px}#paintPreview button{display:block;margin:12px auto 0}
+.productIcon i{display:inline-block;width:14px;height:44px;transform:skewY(-12deg);border:1px solid #111}
+.shopDialog nav{position:sticky;top:-24px;background:#241a30;z-index:1;flex-wrap:wrap}
+#garage footer{max-height:36dvh}.deploy button{font-size:11px}.deploy .primary{min-width:130px}.deploy{gap:8px}
+@media(max-height:600px){#garage{padding:12px 18px}.brand{font-size:11px}.balance small{display:none}#rankPanel{top:49px;left:18px}.intro{top:109px;left:18px}h1{font-size:36px;margin:8px 0}#spec{right:18px;top:53px;width:180px;padding:8px}#spec h2{font-size:16px;margin:5px 0}.stat{margin:5px 0;font-size:9px}#upgrades button{padding:5px 2px;font-size:9px}#garage footer{max-height:34dvh;bottom:4px}.tankCard small{font-size:8px}.deploy label{font-size:7px!important;min-width:120px!important;flex:1 1 120px!important}.deploy button{font-size:9px;padding:8px!important}select{font-size:10px;padding:6px 0}#garage #start{flex:0 1 95px;min-width:95px}.deploy .primary span{margin-left:6px}#tourStart{max-width:85px}.garageHint{display:none}.score{max-width:calc(100% - 340px);font-size:9px}.shopItem h3{font-size:14px}.shopDialog nav{top:-14px}#paintPreview{left:28%;right:28%;font-size:11px}}
+@media(max-width:700px){.intro{display:none}#rankPanel{max-width:185px}.rankBadge{min-width:0}.score{left:48%;font-size:8px;padding:8px;max-width:calc(100% - 330px)}.health{width:150px}#mgStatus{width:150px}}
+
+:root{--safe-left:env(safe-area-inset-left,12px);--safe-right:env(safe-area-inset-right,12px);--safe-bottom:env(safe-area-inset-bottom,12px)}#mgStatus{top:106px}

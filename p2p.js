@@ -8,15 +8,17 @@
   const safeName = s => String(s || '').trim().replace(/[<>]/g, '').slice(0, 22) || 'Танкист';
   const validTank = v => Number.isInteger(v) && v >= 0 && v <= 4 ? v : 0;
   let peer = null, host = false, room = '', nickname = '', myId = '', running = false;
-  let peers = new Map(), roster = [], hostConn = null, loading = false;
+  let peers = new Map(), roster = [], hostConn = null, loading = false, pendingPeerLoad=null;
   let sendAt = 0, snapSeq = 0;
   let packetsSent = 0, packetsReceived = 0, statesReceived = 0, lastSnapshotAt = 0, lastDataAt = 0, lastPingAt = 0, rtt = null;
   let ready = false;
+  const latestStates = new Map(), receivedSeq = new Map();
+  function deliverStates() { if(ready) latestStates.forEach((p,id)=>bridge()?.receiveState(id,p.s)); }
   // Public deterministic PeerJS IDs serve as queue slots; no peer listing is needed.
   let auto = false, autoSlot = 0, generation = 0, autoTimer = null;
   let autoProbeTimer = null, autoRetryTimer = null, autoRetrying = false;
   const AUTO_SLOTS = 24;
-  const autoPeerId = n => 'steel-tanks-auto-v1-slot-' + n;
+  const autoPeerId = n => 'steel-tanks-auto-v2-slot-' + n;
   function clearAutoTimers() {
     clearTimeout(autoTimer); clearTimeout(autoProbeTimer); clearTimeout(autoRetryTimer);
     autoTimer = autoProbeTimer = autoRetryTimer = null; autoRetrying = false;
@@ -74,6 +76,7 @@
     packetsReceived++;
     lastDataAt = performance.now();
     if (data.t === 'hello' && host) {
+      if(roster.some(p=>p.id===conn.peer)){sendConn(conn,{t:'roster',roster});return;}
       if (running || roster.length >= 4) { sendConn(conn, {t:'error', code:'busy', msg:'Комната закрыта или заполнена'}); setTimeout(() => conn.close(), 250); return; }
       const name = safeName(data.name);
       roster = roster.filter(p => p.id !== conn.peer);
@@ -113,9 +116,13 @@
       if (host && roster.some(p => p.id === conn.peer)) {
         const s = bridge()?.snapshot();
         if (s) sendConn(conn, {t:'state', id:myId, seq:++snapSeq, s});
+        latestStates.forEach((p,id)=>{if(id!==conn.peer)sendConn(conn,p)});
         sendConn(conn, {t:'ready-ack'});
       }
       return;
+    }
+    if (data.t === 'drop' && !host) {
+      const gone=String(data.id||''); roster=roster.filter(p=>p.id!==gone); latestStates.delete(gone); bridge()?.drop(gone); return;
     }
     if (data.t === 'ready-ack') {
       const s = bridge()?.snapshot();
@@ -131,12 +138,15 @@
       return;
     }
     const id = host ? conn.peer : String(data.id || '');
-    if (!roster.some(p => p.id === id) && data.t !== 'hit') return;
+    if (!roster.some(p => p.id === id)) return;
     if (data.t === 'state') {
-      if (!data.s || typeof data.s !== 'object') return;
+      if (!data.s || typeof data.s !== 'object' || !Number.isSafeInteger(data.seq) || data.seq<0) return;
+      if(data.seq <= (receivedSeq.get(id) ?? -1)) return;
+      if(!['x','z','yaw','turretYaw','pitch','hp','speed'].every(k=>Number.isFinite(data.s[k]))) return;
+      receivedSeq.set(id,data.seq); latestStates.set(id,{t:'state',id,seq:data.seq,s:data.s});
       statesReceived++;
       lastSnapshotAt = performance.now();
-      bridge()?.receiveState(id, data.s);
+      if(ready) bridge()?.receiveState(id, data.s);
       if (host) relay({t:'state', id:id, seq:data.seq, s:data.s}, conn.peer);
     } else if (data.t === 'fire') {
       if (data.kind !== 'cannon' && data.kind !== 'mg') return;
@@ -144,7 +154,7 @@
       if (host) relay({t:'fire', id:id, kind:data.kind, ammo:data.ammo, yaw:data.yaw, pitch:data.pitch}, conn.peer);
     } else if (data.t === 'hit') {
       const dmg = Number(data.amount);
-      if (!Number.isFinite(dmg) || dmg <= 0 || dmg > 500 || !roster.some(p=>p.id === data.target)) return;
+      if (!Number.isFinite(dmg) || dmg <= 0 || dmg > 1500 || !roster.some(p=>p.id === data.target)) return;
       if (data.target === myId) bridge()?.receiveHit(dmg);
       if (host) relay({t:'hit', id:id, target:data.target, amount:dmg}, conn.peer);
     }
@@ -166,7 +176,7 @@
             if (roster.length >= 2) autoLaunchSoon();
             else status('Ждём второго игрока…');
           }
-        } else bridge()?.drop(c.peer);
+        } else { latestStates.delete(c.peer); relay({t:'drop',id:c.peer}); bridge()?.drop(c.peer); }
       } else {
         if (auto && !running) autoAdvance('Хост недоступен. Ищем другую игру…');
         else status('Соединение с хостом закрыто.');
@@ -190,17 +200,18 @@
   }
   function loadPeer(done) {
     if (window.Peer) { done(); return; }
+    pendingPeerLoad={done,stamp:generation};
     if (loading) return;
     loading = true;
     status('Загружаем WebRTC-модуль…');
     const s = document.createElement('script');
     s.src = 'https://cdn.jsdelivr.net/npm/peerjs@1.5.5/dist/peerjs.min.js';
-    s.onload = () => { loading=false; done(); };
+    s.onload = () => { loading=false; const job=pendingPeerLoad;pendingPeerLoad=null;if(job?.stamp===generation)job.done(); };
     s.onerror = () => { loading=false; status('Не удалось загрузить PeerJS. Нужен интернет.'); };
     document.head.appendChild(s);
   }
   function close() {
-    generation++; auto = false; running = false; ready = false; clearAutoTimers();
+    generation++; latestStates.clear(); receivedSeq.clear(); snapSeq=0; auto = false; running = false; ready = false; clearAutoTimers();
     packetsSent = packetsReceived = statesReceived = 0; lastSnapshotAt = lastDataAt = lastPingAt = 0; rtt = null;
     const hud=$('p2pHud'); if(hud) hud.hidden=true;
     if (peer) { try { peer.destroy(); } catch (e) {} }
@@ -341,7 +352,7 @@
     ready() {
       // Called only when the game reports the scene is actually playable.
       if (!running) return;
-      ready = true;
+      ready = true; deliverStates();
       const s=bridge()?.snapshot();
       if(s) send({t:'state',id:myId,s,seq:++snapSeq});
       if (!host) sendConn(hostConn,{t:'ready'});
@@ -359,7 +370,7 @@
     },
     hit(id,amount) {
       if (!Number.isFinite(amount) || amount<=0) return;
-      send({t:'hit',id:myId,target:id,amount:Math.min(500,amount)});
+      send({t:'hit',id:myId,target:id,amount:Math.min(1500,amount)});
     },
     close: close,
     stateNow() { const s=bridge()?.snapshot(); if(s) send({t:'state',id:myId,s:s,seq:++snapSeq}); },

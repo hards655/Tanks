@@ -4,6 +4,8 @@ on:
     branches: [main]
     paths:
       - 'game.js'
+      - 'p2p.js'
+      - 'tests/**'
       - 'visuals.js'
       - 'track-rig.js'
       - 'style.css'

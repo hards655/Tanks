@@ -148,7 +148,7 @@
       peer=new window.Peer(undefined,{debug:0});
       peer.on('open', id => {
         myId=id;
-        const c=peer.connect('steel-tanks-' + room.toLowerCase(),{reliable:false,serialization:'json'});
+        const c=peer.connect('steel-tanks-' + room.toLowerCase(),{reliable:true,serialization:'json'});
         connected(c);
         status('Соединяемся с комнатой ' + room + '…');
       });

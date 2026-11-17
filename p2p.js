@@ -10,11 +10,47 @@
   let peer = null, host = false, room = '', nickname = '', myId = '', running = false;
   let peers = new Map(), roster = [], hostConn = null, loading = false;
   let sendAt = 0, snapSeq = 0;
+  // Public deterministic PeerJS IDs serve as queue slots; no peer listing is needed.
+  let auto = false, autoSlot = 0, generation = 0, autoTimer = null;
+  let autoProbeTimer = null, autoRetryTimer = null, autoRetrying = false;
+  const AUTO_SLOTS = 24;
+  const autoPeerId = n => 'steel-tanks-auto-v1-slot-' + n;
+  function clearAutoTimers() {
+    clearTimeout(autoTimer); clearTimeout(autoProbeTimer); clearTimeout(autoRetryTimer);
+    autoTimer = autoProbeTimer = autoRetryTimer = null; autoRetrying = false;
+  }
+  function autoStatus() {
+    $('p2pAuto').disabled = auto;
+    $('p2pCancel').hidden = !auto;
+    $('p2pCreate').disabled = auto;
+    $('p2pJoin').disabled = auto;
+    $('p2pCopy').disabled = auto;
+  }
+  function autoLaunchSoon() {
+    if (!auto || !host || running || roster.length < 2) return;
+    clearTimeout(autoTimer);
+    const delay = roster.length >= 4 ? 1300 : roster.length === 3 ? 4000 : 6500;
+    status('Игроки найдены (' + roster.length + '/4). Бой начнётся автоматически…');
+    autoTimer = setTimeout(() => {
+      if (auto && host && !running && roster.length >= 2) launch();
+    }, delay);
+  }
+  function autoAdvance(reason) {
+    if (!auto || running || autoRetrying) return;
+    autoRetrying = true;
+    clearTimeout(autoProbeTimer);
+    const current = autoSlot;
+    status(reason || 'Ищем другую комнату…');
+    autoRetryTimer = setTimeout(() => {
+      if (auto && !running) autoScan(current + 1);
+    }, 260);
+  }
+
   const bridge = () => window.STEEL_NET_BRIDGE;
   function status(s) { $('p2pStatus').textContent = s; }
   function publishRoster() {
     $('p2pPlayers').textContent = 'Игроки: ' + (roster.map(p => p.name).join(' • ') || 'нет');
-    $('p2pLaunch').hidden = !host || running;
+    $('p2pLaunch').hidden = !host || running || auto;
     $('p2pLaunch').disabled = roster.length < 2;
   }
   function sendConn(c, data) { if (c && c.open) { try { c.send(data); } catch (e) {} } }
@@ -24,19 +60,23 @@
   function packet(data, conn) {
     if (!data || typeof data !== 'object' || !('t' in data)) return;
     if (data.t === 'hello' && host) {
-      if (running || roster.length >= 4) { sendConn(conn, {t:'error', msg:'Комната закрыта или заполнена'}); conn.close(); return; }
+      if (running || roster.length >= 4) { sendConn(conn, {t:'error', code:'busy', msg:'Комната закрыта или заполнена'}); setTimeout(() => conn.close(), 250); return; }
       const name = safeName(data.name);
       roster = roster.filter(p => p.id !== conn.peer);
       roster.push({id:conn.peer, name:name, type:validTank(data.tank)});
       relay({t:'roster', roster:roster});
       publishRoster();
-      status('Комната ' + room + ' • игроков: ' + roster.length + '/4');
+      if (auto) autoLaunchSoon();
+      else status('Комната ' + room + ' • игроков: ' + roster.length + '/4');
       return;
     }
     if (data.t === 'roster' && !host && Array.isArray(data.roster)) {
       roster = data.roster.slice(0, 4).map(p => ({id:String(p.id || '').slice(0,80), name:safeName(p.name), type:validTank(p.type)}));
       publishRoster();
-      status('В комнате ' + roster.length + '/4. Ожидаем запуска хостом.');
+      if (auto) {
+        clearTimeout(autoProbeTimer);
+        status('Матч найден! Игроков ' + roster.length + '/4. Ждём автоматического старта…');
+      } else status('В комнате ' + roster.length + '/4. Ожидаем запуска хостом.');
       return;
     }
     if (data.t === 'start' && !host && Array.isArray(data.roster) && !running) {
@@ -47,7 +87,11 @@
       bridge()?.launch(roster, myId, map);
       return;
     }
-    if (data.t === 'error') { status(String(data.msg || 'Ошибка соединения')); return; }
+    if (data.t === 'error') {
+      if (auto && data.code === 'busy') autoAdvance('Комната занята. Продолжаем поиск…');
+      else status(String(data.msg || 'Ошибка соединения'));
+      return;
+    }
     if (!running) return;
     const id = host ? conn.peer : String(data.id || '');
     if (!roster.some(p => p.id === id) && data.t !== 'hit') return;
@@ -67,22 +111,36 @@
     }
   }
   function connected(c) {
+    const stamp = generation;
     if (host && peers.size >= 3) { c.close(); return; }
     if (host) peers.set(c.peer, c); else hostConn = c;
-    c.on('data', d => packet(d,c));
+    c.on('data', d => { if (stamp === generation) packet(d,c); });
     c.on('close', () => {
+      if (stamp !== generation) return;
       if (host) {
         peers.delete(c.peer);
         roster = roster.filter(p => p.id !== c.peer);
-        if (!running) { relay({t:'roster',roster:roster}); publishRoster(); }
-        else bridge()?.drop(c.peer);
+        if (!running) {
+          relay({t:'roster',roster:roster}); publishRoster();
+          if (auto) {
+            clearTimeout(autoTimer);
+            if (roster.length >= 2) autoLaunchSoon();
+            else status('Ждём второго игрока…');
+          }
+        } else bridge()?.drop(c.peer);
       } else {
-        status('Соединение с хостом закрыто.');
+        if (auto && !running) autoAdvance('Хост недоступен. Ищем другую игру…');
+        else status('Соединение с хостом закрыто.');
         if (running) bridge()?.hostLost();
       }
     });
-    c.on('error', () => status('Ошибка P2P соединения.'));
+    c.on('error', () => {
+      if (stamp !== generation) return;
+      if (auto && !running && !host) autoAdvance('Не получилось соединиться. Ищем следующую игру…');
+      else status('Ошибка P2P соединения.');
+    });
     c.on('open', () => {
+      if (stamp !== generation) return;
       if (host) {
         status('Подключился игрок. Ожидаем его ник…');
       } else {
@@ -103,10 +161,10 @@
     document.head.appendChild(s);
   }
   function close() {
-    running = false;
+    generation++; auto = false; running = false; clearAutoTimers();
     if (peer) { try { peer.destroy(); } catch (e) {} }
-    peer = null; peers.clear(); hostConn = null; roster=[]; room=''; myId='';
-    publishRoster();
+    peer = null; host = false; peers.clear(); hostConn = null; roster=[]; room=''; myId='';
+    publishRoster(); autoStatus();
   }
   function open() {
     if (!bridge()?.isGarage()) return;
@@ -115,6 +173,7 @@
     $('p2pNick').value = nickname;
     $('p2pKey').textContent = '—';
     $('p2pLobby').hidden = false;
+    autoStatus();
     $('p2pLaunch').hidden = true;
     status('Создай комнату или введи код комнаты друга.');
   }
@@ -155,6 +214,74 @@
       peer.on('error', e => status('Не удалось соединиться: ' + String(e.type || e.message)));
     });
   }
+
+  function autoScan(slot) {
+    if (!auto || running) return;
+    clearAutoTimers(); generation++;
+    if (slot >= AUTO_SLOTS) {
+      status('Все игровые комнаты заняты. Проверяем их ещё раз…');
+      autoRetryTimer = setTimeout(() => { if (auto && !running) autoScan(0); }, 2300);
+      return;
+    }
+    autoSlot = slot; host = true; room = 'АВТО';
+    roster=[]; peers.clear(); hostConn=null; myId='';
+    if (peer) { try { peer.destroy(); } catch (e) {} }
+    const stamp = generation, id = autoPeerId(slot);
+    const owner = new window.Peer(id, {debug:0});
+    peer = owner;
+    status('Автопоиск · проверяем комнату ' + (slot+1) + '…');
+    owner.on('connection', c => { if (auto && peer === owner && stamp === generation) connected(c); else c.close(); });
+    owner.on('open', connectedId => {
+      if (!auto || stamp !== generation || peer !== owner) return;
+      host=true; myId=connectedId;
+      roster=[{id:myId,name:nickname,type:bridge()?.tankType() || 0}];
+      publishRoster();
+      status('Ищем соперников… Вы создали открытую комнату для автопоиска.');
+    });
+    owner.on('error', error => {
+      if (!auto || running || stamp !== generation) return;
+      if (error.type === 'unavailable-id') {
+        try { owner.destroy(); } catch (e) {}
+        host=false;
+        const guest=new window.Peer(undefined,{debug:0});
+        peer=guest;
+        guest.on('open', guestId => {
+          if (!auto || stamp !== generation || peer !== guest) return;
+          myId=guestId; room='АВТО';
+          const c=guest.connect(id,{reliable:true,serialization:'json'});
+          connected(c);
+          status('Нашли комнату! Проверяем свободные места…');
+          autoProbeTimer=setTimeout(() => {
+            if (auto && stamp === generation && !running && !roster.some(p => p.id === myId)) {
+              autoAdvance('Хост не ответил. Продолжаем поиск…');
+            }
+          }, 6000);
+        });
+        guest.on('error', err => {
+          if (!auto || stamp !== generation || running) return;
+          if (err.type==='peer-unavailable') autoAdvance('Комната закрылась. Ищем дальше…');
+          else autoAdvance('Не удалось войти в комнату. Ищем дальше…');
+        });
+        guest.on('disconnected',()=>{if(auto && !running && stamp===generation) autoAdvance('Потеряна связь. Ищем снова…');});
+      } else autoAdvance('Ошибка сервера поиска. Пробуем следующий слот…');
+    });
+    owner.on('disconnected',()=>{if(auto&&!running&&stamp===generation)autoAdvance('Сервер поиска недоступен. Повторяем попытку…');});
+  }
+  function automatic() {
+    if (!bridge()?.isGarage()) return;
+    close();
+    auto=true; nickname=safeName($('p2pNick').value);
+    $('p2pKey').textContent='АВТОПОИСК';
+    autoStatus();
+    status('Ищем игроков… Комнаты подбираются автоматически.');
+    loadPeer(()=>{ if(auto && !peer) autoScan(0); });
+  }
+  function cancelAuto() {
+    if (!auto) return;
+    close(); $('p2pKey').textContent='—';
+    status('Автопоиск отменён. Можно создать комнату или войти по коду.');
+  }
+
   function launch() {
     if (!host || running || roster.length < 2) { status('Для начала нужны минимум 2 игрока.'); return; }
     const map=bridge()?.mapIndex() || 0;
@@ -185,6 +312,8 @@
   $('p2pOpen').addEventListener('click',open);
   $('p2pCreate').addEventListener('click',create);
   $('p2pJoin').addEventListener('click',join);
+  $('p2pAuto').addEventListener('click',automatic);
+  $('p2pCancel').addEventListener('click',cancelAuto);
   $('p2pLaunch').addEventListener('click',launch);
   $('p2pBack').addEventListener('click',()=>{close();$('p2pLobby').hidden=true;});
   $('p2pCopy').addEventListener('click',async () => {
@@ -192,6 +321,7 @@
     try { await navigator.clipboard.writeText(room); status('Код скопирован.'); }
     catch(e) { status('Скопируй код с экрана: ' + room); }
   });
+  autoStatus();
   setInterval(() => {
     if (!running) return;
     const now=performance.now();

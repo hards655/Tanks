@@ -1,7 +1,10 @@
+import {WEAPON_PRODUCTS} from './arsenal.js';
+import {PAINTS} from './paints.js';
 // Deterministic input, weapon and economy rules shared with the test suite.
 export function joystickVector(x,y,deadzone=.12){const r=Math.hypot(x,y);if(r<=deadzone)return{x:0,y:0};const m=(Math.min(r,1)-deadzone)/(1-deadzone);return{x:x/r*m,y:y/r*m}}
 export function damp(current,target,rate,dt){return current+(target-current)*(1-Math.exp(-rate*dt))}
 export const PRODUCTS=[
+ ...WEAPON_PRODUCTS,
  {id:'stabilizer',name:'Стабилизатор',category:'equipment',price:950,description:'На 30% быстрее наведение башни. Постоянное оборудование.'},
  {id:'rammer',name:'Досылатель',category:'equipment',price:1100,description:'Перезарядка основного орудия быстрее на 15%.'},
  {id:'cooler',name:'Охлаждение КП-12.7',category:'equipment',price:700,description:'На 35% меньше нагрев крупнокалиберного пулемёта.'},
@@ -20,14 +23,11 @@ export const PRODUCTS=[
  {id:'overdrive',name:'Усиленное топливо',category:'supplies',price:140,description:'+12% скорости в следующем бою.'},
  {id:'supercharge',name:'Усиленный заряд',category:'supplies',price:220,description:'На один бой: +8% урона основных снарядов.'},
  {id:'rationPack',name:'Экипажный паёк',category:'supplies',price:190,description:'На один бой: +8% скорости перезарядки и поворота башни.'},
- {id:'forest',name:'Лесной камуфляж',category:'paint',price:450,description:'Трёхцветная окраска. Только внешний вид.'},
- {id:'desert',name:'Пустынный камуфляж',category:'paint',price:450,description:'Песочная окраска. Только внешний вид.'},
- {id:'winter',name:'Зимний камуфляж',category:'paint',price:450,description:'Светлая полевая окраска. Только внешний вид.'},
- {id:'admin_ua',name:'Админский: Сине-жёлтый Трезубец',category:'paint',price:0,description:'Сине-жёлтая окраска с гербом-трезубцем. Бесплатный декоративный скин.'}
+ ...Object.entries(PAINTS).filter(([id])=>id!=='factory').map(([id,p])=>({id,name:p.name,price:p.price,category:'paint',description:'Постоянная декоративная окраска. Не меняет характеристики.'}))
 ];
-export function migrateProfile(s){s.inventory??={};s.equipment??=[];s.paints??=['factory'];s.loadout??={equipment:[],supplies:[],paint:'factory'};s.loadout.equipment??=[];s.loadout.supplies??=[];s.contract??={day:'',kills:0,wins:0,claimed:false};return s}
-export function purchase(s,id){const p=PRODUCTS.find(p=>p.id===id);if(!p)return 'Товар не найден';if(p.category==='equipment'&&s.equipment.includes(id)||p.category==='paint'&&s.paints.includes(id))return 'Уже приобретено';if(s.credits<p.price)return 'Недостаточно кредитов';if(p.category==='supplies'&&(s.inventory[id]||0)>=10)return 'На складе уже 10';s.credits-=p.price;if(p.category==='equipment')s.equipment.push(id);else if(p.category==='paint')s.paints.push(id);else s.inventory[id]=(s.inventory[id]||0)+1;return null}
-export function equip(s,id){const p=PRODUCTS.find(p=>p.id===id);if(!p)return 'Товар не найден';if(p.category==='paint'){if(!s.paints.includes(id))return 'Сначала купи окраску';s.loadout.paint=id;return null}const list=s.loadout[p.category];const i=list.indexOf(id);if(i>=0){list.splice(i,1);return null}if(p.category==='equipment'&&!s.equipment.includes(id)||p.category==='supplies'&&!s.inventory[id])return 'Нет на складе';if(list.length>=(p.category==='equipment'?3:2))return p.category==='equipment'?'Доступно три слота':'Доступно два слота';list.push(id);return null}
+export function migrateProfile(s){s.inventory??={};s.equipment??=[];s.paints??=['factory'];s.loadout??={equipment:[],supplies:[],paint:'factory'};s.loadout.equipment??=[];s.loadout.supplies??=[];s.weapons??=['standard'];s.loadout.weapon??='standard';s.contract??={day:'',kills:0,wins:0,claimed:false};return s}
+export function purchase(s,id){const p=PRODUCTS.find(p=>p.id===id);if(!p)return 'Товар не найден';if(p.category==='weapon'&&s.weapons.includes(id)||p.category==='equipment'&&s.equipment.includes(id)||p.category==='paint'&&s.paints.includes(id))return 'Уже приобретено';if(s.credits<p.price)return 'Недостаточно кредитов';if(p.category==='supplies'&&(s.inventory[id]||0)>=10)return 'На складе уже 10';s.credits-=p.price;if(p.category==='weapon')s.weapons.push(id);else if(p.category==='equipment')s.equipment.push(id);else if(p.category==='paint')s.paints.push(id);else s.inventory[id]=(s.inventory[id]||0)+1;return null}
+export function equip(s,id){const p=PRODUCTS.find(p=>p.id===id);if(!p)return 'Товар не найден';if(p.category==='weapon'){if(!s.weapons.includes(id))return 'Сначала купи орудие';s.loadout.weapon=id;return null}if(p.category==='paint'){if(!s.paints.includes(id))return 'Сначала купи окраску';s.loadout.paint=id;return null}const list=s.loadout[p.category];const i=list.indexOf(id);if(i>=0){list.splice(i,1);return null}if(p.category==='equipment'&&!s.equipment.includes(id)||p.category==='supplies'&&!s.inventory[id])return 'Нет на складе';if(list.length>=(p.category==='equipment'?3:2))return p.category==='equipment'?'Доступно три слота':'Доступно два слота';list.push(id);return null}
 export function consumeLoadout(s){const used=[];for(const id of s.loadout.supplies){if((s.inventory[id]||0)>0){s.inventory[id]--;used.push(id)}}s.loadout.supplies=s.loadout.supplies.filter(id=>(s.inventory[id]||0)>0);return used}
 export function createMG(extra=0){return{belt:60,reserve:240+extra,capacity:60,heat:0,cooldown:0,reloading:0,overheated:false}}
 export function reloadMG(m){if(m.reloading||m.belt===m.capacity||m.reserve<=0)return false;m.reloading=4;return true}

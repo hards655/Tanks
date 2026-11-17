@@ -38,7 +38,9 @@ h1 span{color:#ffbd45;text-shadow:4px 5px 0 #100b1a}
 @media(max-width:700px){.intro{display:none}.score{max-width:calc(100% - 330px);font-size:8px}}
 
 #p2pLobby{z-index:125}#p2pLobby .p2pDialog{max-width:520px;width:min(95vw,520px);max-height:92vh;overflow-y:auto}#p2pLobby label{display:block;font-size:12px;color:#bfcbb9;margin:14px 0 8px}#p2pLobby input{display:block;width:100%;box-sizing:border-box;font-size:16px;background:#172822;border:1px solid #75876d;color:white;padding:12px;margin-top:7px;border-radius:6px}#p2pLobby .p2pActions{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}#p2pLobby .p2pRoom{margin:14px 0;padding:12px;border:1px solid #647d62;background:#14291c;letter-spacing:2px}#p2pLobby .p2pRoom strong{font-size:26px;display:block;color:#d4f070;margin-top:6px;letter-spacing:5px}#p2pLobby small{display:block;font-size:11px;color:#b4c2b2;line-height:1.5}#p2pStatus{min-height:20px;color:#e0f5bc}#p2pPlayers{color:#fff;overflow-wrap:anywhere}
-</style></head><body><canvas id="game"></canvas><div id="garage" class="screen"><header><div class="brand">ST<span> / </span>STEEL THUNDER</div><div class="balance">◈ <b id="credits"></b> <small>КРЕДИТЫ</small></div></header><section class="intro"><div class="eyebrow">ТАНКОВЫЙ АРСЕНАЛ / 01</div><h1>STEEL<br><span>THUNDER</span></h1><p>Броня крепка. Решение — за тобой.</p><div class="tag">FIELDWORKS 4.0 <i>●</i> ГОТОВ К БОЮ</div></section><section id="spec" class="panel"></section><div id="rankPanel"></div><div class="garageHint">↔ Проведи по танку, чтобы вращать модель</div><footer><div id="tankCards"></div><div class="deploy"><label>ТЕАТР ОПЕРАЦИЙ<select id="map"><option>Зелёная долина</option><option>Пустынный рубеж</option><option>Зимний фронт</option><option>Неоновый каньон</option><option>Ржавый мегаполис</option><option>Вулканический разлом</option><option>Лунная база</option><option>Затопленный порт</option></select></label><label>БОЕВАЯ ЗАДАЧА<select id="mode"><option value="solo">Одиночный бой · 1 против 3</option><option value="team">Командный бой · 4 против 3</option><option value="survival">Выживание · волны</option><option value="duel">Дуэль · 1 на 1</option><option value="flag">Захват флага · 1 на 1</option></select></label><button id="p2pOpen">🌐 МУЛЬТИПЛЕЕР</button><button id="tourStart">ОСМОТР КАРТ</button><button id="shopOpen">АРСЕНАЛ</button><button id="settingsOpen" class="square">⚙</button><button id="start" class="primary">В БОЙ <span>↗</span></button></div><div class="footnote">ОРИГИНАЛЬНАЯ БОЕВАЯ ТЕХНИКА <span id="stats"></span></div></footer></div><div id="hud" hidden><div class="topHud"><div class="health panel"><small id="tankName"></small><b id="hp"></b><div class="bar"><i id="hpbar"></i></div><span id="modules"></span></div><div class="score panel" id="score"></div><button id="pause">Ⅱ</button></div><canvas id="mini" width="180" height="180"></canvas><div id="notice"></div><div id="bore" aria-label="Направление орудия"></div><div id="reticle"><i></i><span id="hit"></span></div><div id="scope" hidden></div><div id="mgStatus"><span id="mgInfo"></span><div class="bar"><i id="mgHeat"></i></div></div><div class="bottomInfo"><b id="speed"></b><span id="reload"></span><span id="ammoInfo"></span></div><div id="joystick" class="control"><div id="stick"></div></div><button id="fire" class="control">◎<small>ОГОНЬ</small></button><button id="mg" class="control" aria-label="Удерживать для огня из пулемёта">≋<small>КП-12.7</small></button><button id="mgReload" class="control">↻<small>ЛЕНТА · F</small></button><button id="center" class="control">↥<small>ЦЕНТР · C</small></button><button id="aim" class="control">⊕<small>ПРИЦЕЛ</small></button><button id="repair" class="control">＋<small id="repairLabel">РЕМОНТ</small></button><button id="ammo" class="control">AP<small>СНАРЯД</small></button><button id="lock" class="control">⌖<small>ЗАХВАТ</small></button><button id="smokeBtn" class="control">☁<small id="smokeLabel">ДЫМ · G</small></button><div id="pcHelp">WASD движение · мышь обзор · ЛКМ огонь · ПКМ прицел · Space пулемёт · F лента · R ремонт · Q снаряд · C центр · Esc пауза</div></div><div id="shop" class="modal" hidden><div class="shopDialog"><header><div><div class="eyebrow">ПОЛЕВОЙ АРСЕНАЛ / КРЕДИТЫ ЗА БОИ</div><h2>Оснащение и снабжение</h2></div><b id="shopBalance"></b><button id="shopClose">Закрыть ✕</button></header><nav id="shopTabs"></nav><p id="loadoutSummary"></p><div id="shopItems"></div><p id="shopMessage" role="status"></p></div></div><div id="overlay" class="modal" hidden></div><div id="settings" class="modal" hidden><div class="dialog"><div class="eyebrow">ПАРАМЕТРЫ СИСТЕМЫ</div><h2>Настройки</h2><div id="settingsFields"></div><button id="layout">Переместить кнопки на экране</button><button id="resetLayout">Сбросить расположение</button><button id="settingsClose" class="primary">Готово</button></div></div><div id="layoutDone" hidden><b>Перетащи кнопки пальцем</b><button>Сохранить</button></div><div id="p2pLobby" class="modal" hidden><div class="dialog p2pDialog"><div class="eyebrow">STEEL THUNDER / WEBRTC</div><h2>Мультиплеер P2P</h2><p>Один игрок создаёт комнату, друзья входят по коду. Бой идёт между браузерами, без игрового сервера.</p><label>Твой ник<input id="p2pNick" maxlength="22" autocomplete="off" placeholder="Танкист"></label><div class="p2pActions"><button id="p2pCreate" class="primary">Создать хост</button><button id="p2pCopy">Копировать код</button></div><div class="p2pRoom">КОД КОМНАТЫ <strong id="p2pKey">—</strong></div><label>Войти к другу<input id="p2pCode" maxlength="6" autocomplete="off" spellcheck="false" placeholder="ABC123"></label><div class="p2pActions"><button id="p2pJoin">Подключиться</button><button id="p2pLaunch" class="primary" hidden disabled>Начать бой</button><button id="p2pBack">Назад</button></div><p id="p2pPlayers" role="status"></p><p id="p2pStatus" role="status"></p><small>Требуется интернет. Поиск комнаты использует PeerJS Cloud, а игровой трафик — WebRTC P2P. Некоторые сети требуют TURN-сервера.</small></div></div><div id="rotate">↻<br>Поверни телефон горизонтально</div><script>(()=>{/**
+
+#p2pLobby .p2pMatch{border:1px solid #627f55;border-radius:8px;padding:12px;margin:12px 0;background:#16261b}#p2pLobby .p2pMatch .primary{width:100%;font-weight:800;font-size:14px}#p2pLobby #p2pCancel{margin-top:9px;width:100%}#p2pLobby .p2pMatch small{margin-top:9px}#p2pLobby button:disabled{opacity:.45;cursor:default}
+</style></head><body><canvas id="game"></canvas><div id="garage" class="screen"><header><div class="brand">ST<span> / </span>STEEL THUNDER</div><div class="balance">◈ <b id="credits"></b> <small>КРЕДИТЫ</small></div></header><section class="intro"><div class="eyebrow">ТАНКОВЫЙ АРСЕНАЛ / 01</div><h1>STEEL<br><span>THUNDER</span></h1><p>Броня крепка. Решение — за тобой.</p><div class="tag">FIELDWORKS 4.0 <i>●</i> ГОТОВ К БОЮ</div></section><section id="spec" class="panel"></section><div id="rankPanel"></div><div class="garageHint">↔ Проведи по танку, чтобы вращать модель</div><footer><div id="tankCards"></div><div class="deploy"><label>ТЕАТР ОПЕРАЦИЙ<select id="map"><option>Зелёная долина</option><option>Пустынный рубеж</option><option>Зимний фронт</option><option>Неоновый каньон</option><option>Ржавый мегаполис</option><option>Вулканический разлом</option><option>Лунная база</option><option>Затопленный порт</option></select></label><label>БОЕВАЯ ЗАДАЧА<select id="mode"><option value="solo">Одиночный бой · 1 против 3</option><option value="team">Командный бой · 4 против 3</option><option value="survival">Выживание · волны</option><option value="duel">Дуэль · 1 на 1</option><option value="flag">Захват флага · 1 на 1</option></select></label><button id="p2pOpen">🌐 МУЛЬТИПЛЕЕР</button><button id="tourStart">ОСМОТР КАРТ</button><button id="shopOpen">АРСЕНАЛ</button><button id="settingsOpen" class="square">⚙</button><button id="start" class="primary">В БОЙ <span>↗</span></button></div><div class="footnote">ОРИГИНАЛЬНАЯ БОЕВАЯ ТЕХНИКА <span id="stats"></span></div></footer></div><div id="hud" hidden><div class="topHud"><div class="health panel"><small id="tankName"></small><b id="hp"></b><div class="bar"><i id="hpbar"></i></div><span id="modules"></span></div><div class="score panel" id="score"></div><button id="pause">Ⅱ</button></div><canvas id="mini" width="180" height="180"></canvas><div id="notice"></div><div id="bore" aria-label="Направление орудия"></div><div id="reticle"><i></i><span id="hit"></span></div><div id="scope" hidden></div><div id="mgStatus"><span id="mgInfo"></span><div class="bar"><i id="mgHeat"></i></div></div><div class="bottomInfo"><b id="speed"></b><span id="reload"></span><span id="ammoInfo"></span></div><div id="joystick" class="control"><div id="stick"></div></div><button id="fire" class="control">◎<small>ОГОНЬ</small></button><button id="mg" class="control" aria-label="Удерживать для огня из пулемёта">≋<small>КП-12.7</small></button><button id="mgReload" class="control">↻<small>ЛЕНТА · F</small></button><button id="center" class="control">↥<small>ЦЕНТР · C</small></button><button id="aim" class="control">⊕<small>ПРИЦЕЛ</small></button><button id="repair" class="control">＋<small id="repairLabel">РЕМОНТ</small></button><button id="ammo" class="control">AP<small>СНАРЯД</small></button><button id="lock" class="control">⌖<small>ЗАХВАТ</small></button><button id="smokeBtn" class="control">☁<small id="smokeLabel">ДЫМ · G</small></button><div id="pcHelp">WASD движение · мышь обзор · ЛКМ огонь · ПКМ прицел · Space пулемёт · F лента · R ремонт · Q снаряд · C центр · Esc пауза</div></div><div id="shop" class="modal" hidden><div class="shopDialog"><header><div><div class="eyebrow">ПОЛЕВОЙ АРСЕНАЛ / КРЕДИТЫ ЗА БОИ</div><h2>Оснащение и снабжение</h2></div><b id="shopBalance"></b><button id="shopClose">Закрыть ✕</button></header><nav id="shopTabs"></nav><p id="loadoutSummary"></p><div id="shopItems"></div><p id="shopMessage" role="status"></p></div></div><div id="overlay" class="modal" hidden></div><div id="settings" class="modal" hidden><div class="dialog"><div class="eyebrow">ПАРАМЕТРЫ СИСТЕМЫ</div><h2>Настройки</h2><div id="settingsFields"></div><button id="layout">Переместить кнопки на экране</button><button id="resetLayout">Сбросить расположение</button><button id="settingsClose" class="primary">Готово</button></div></div><div id="layoutDone" hidden><b>Перетащи кнопки пальцем</b><button>Сохранить</button></div><div id="p2pLobby" class="modal" hidden><div class="dialog p2pDialog"><div class="eyebrow">STEEL THUNDER / WEBRTC</div><h2>Мультиплеер P2P</h2><p>Один игрок создаёт комнату, друзья входят по коду. Бой идёт между браузерами, без игрового сервера.</p><label>Твой ник<input id="p2pNick" maxlength="22" autocomplete="off" placeholder="Танкист"></label><div class="p2pMatch"><button id="p2pAuto" class="primary" type="button">⚡ Найти игру автоматически</button><button id="p2pCancel" type="button" hidden>Отменить поиск</button><small>Автопоиск создаёт или находит свободную комнату. Когда соберутся минимум два игрока, бой запустится сам (до 4 игроков).</small></div><div class="p2pActions"><button id="p2pCreate" class="primary">Создать хост</button><button id="p2pCopy">Копировать код</button></div><div class="p2pRoom">КОД КОМНАТЫ <strong id="p2pKey">—</strong></div><label>Войти к другу<input id="p2pCode" maxlength="6" autocomplete="off" spellcheck="false" placeholder="ABC123"></label><div class="p2pActions"><button id="p2pJoin">Подключиться</button><button id="p2pLaunch" class="primary" hidden disabled>Начать бой</button><button id="p2pBack">Назад</button></div><p id="p2pPlayers" role="status"></p><p id="p2pStatus" role="status"></p><small>Требуется интернет. Поиск комнаты использует PeerJS Cloud, а игровой трафик — WebRTC P2P. Некоторые сети требуют TURN-сервера.</small></div></div><div id="rotate">↻<br>Поверни телефон горизонтально</div><script>(()=>{/**
  * @license
  * Copyright 2010-2024 Three.js Authors
  * SPDX-License-Identifier: MIT
@@ -3900,11 +3902,47 @@ diffuseColor.rgb*=.94+macro*.06;`)},n.customProgramCacheKey=()=>"steel-terrain-w
   let peer = null, host = false, room = '', nickname = '', myId = '', running = false;
   let peers = new Map(), roster = [], hostConn = null, loading = false;
   let sendAt = 0, snapSeq = 0;
+  // Public deterministic PeerJS IDs serve as queue slots; no peer listing is needed.
+  let auto = false, autoSlot = 0, generation = 0, autoTimer = null;
+  let autoProbeTimer = null, autoRetryTimer = null, autoRetrying = false;
+  const AUTO_SLOTS = 24;
+  const autoPeerId = n => 'steel-tanks-auto-v1-slot-' + n;
+  function clearAutoTimers() {
+    clearTimeout(autoTimer); clearTimeout(autoProbeTimer); clearTimeout(autoRetryTimer);
+    autoTimer = autoProbeTimer = autoRetryTimer = null; autoRetrying = false;
+  }
+  function autoStatus() {
+    $('p2pAuto').disabled = auto;
+    $('p2pCancel').hidden = !auto;
+    $('p2pCreate').disabled = auto;
+    $('p2pJoin').disabled = auto;
+    $('p2pCopy').disabled = auto;
+  }
+  function autoLaunchSoon() {
+    if (!auto || !host || running || roster.length < 2) return;
+    clearTimeout(autoTimer);
+    const delay = roster.length >= 4 ? 1300 : roster.length === 3 ? 4000 : 6500;
+    status('Игроки найдены (' + roster.length + '/4). Бой начнётся автоматически…');
+    autoTimer = setTimeout(() => {
+      if (auto && host && !running && roster.length >= 2) launch();
+    }, delay);
+  }
+  function autoAdvance(reason) {
+    if (!auto || running || autoRetrying) return;
+    autoRetrying = true;
+    clearTimeout(autoProbeTimer);
+    const current = autoSlot;
+    status(reason || 'Ищем другую комнату…');
+    autoRetryTimer = setTimeout(() => {
+      if (auto && !running) autoScan(current + 1);
+    }, 260);
+  }
+
   const bridge = () => window.STEEL_NET_BRIDGE;
   function status(s) { $('p2pStatus').textContent = s; }
   function publishRoster() {
     $('p2pPlayers').textContent = 'Игроки: ' + (roster.map(p => p.name).join(' • ') || 'нет');
-    $('p2pLaunch').hidden = !host || running;
+    $('p2pLaunch').hidden = !host || running || auto;
     $('p2pLaunch').disabled = roster.length < 2;
   }
   function sendConn(c, data) { if (c && c.open) { try { c.send(data); } catch (e) {} } }
@@ -3914,19 +3952,23 @@ diffuseColor.rgb*=.94+macro*.06;`)},n.customProgramCacheKey=()=>"steel-terrain-w
   function packet(data, conn) {
     if (!data || typeof data !== 'object' || !('t' in data)) return;
     if (data.t === 'hello' && host) {
-      if (running || roster.length >= 4) { sendConn(conn, {t:'error', msg:'Комната закрыта или заполнена'}); conn.close(); return; }
+      if (running || roster.length >= 4) { sendConn(conn, {t:'error', code:'busy', msg:'Комната закрыта или заполнена'}); setTimeout(() => conn.close(), 250); return; }
       const name = safeName(data.name);
       roster = roster.filter(p => p.id !== conn.peer);
       roster.push({id:conn.peer, name:name, type:validTank(data.tank)});
       relay({t:'roster', roster:roster});
       publishRoster();
-      status('Комната ' + room + ' • игроков: ' + roster.length + '/4');
+      if (auto) autoLaunchSoon();
+      else status('Комната ' + room + ' • игроков: ' + roster.length + '/4');
       return;
     }
     if (data.t === 'roster' && !host && Array.isArray(data.roster)) {
       roster = data.roster.slice(0, 4).map(p => ({id:String(p.id || '').slice(0,80), name:safeName(p.name), type:validTank(p.type)}));
       publishRoster();
-      status('В комнате ' + roster.length + '/4. Ожидаем запуска хостом.');
+      if (auto) {
+        clearTimeout(autoProbeTimer);
+        status('Матч найден! Игроков ' + roster.length + '/4. Ждём автоматического старта…');
+      } else status('В комнате ' + roster.length + '/4. Ожидаем запуска хостом.');
       return;
     }
     if (data.t === 'start' && !host && Array.isArray(data.roster) && !running) {
@@ -3937,7 +3979,11 @@ diffuseColor.rgb*=.94+macro*.06;`)},n.customProgramCacheKey=()=>"steel-terrain-w
       bridge()?.launch(roster, myId, map);
       return;
     }
-    if (data.t === 'error') { status(String(data.msg || 'Ошибка соединения')); return; }
+    if (data.t === 'error') {
+      if (auto && data.code === 'busy') autoAdvance('Комната занята. Продолжаем поиск…');
+      else status(String(data.msg || 'Ошибка соединения'));
+      return;
+    }
     if (!running) return;
     const id = host ? conn.peer : String(data.id || '');
     if (!roster.some(p => p.id === id) && data.t !== 'hit') return;
@@ -3957,22 +4003,36 @@ diffuseColor.rgb*=.94+macro*.06;`)},n.customProgramCacheKey=()=>"steel-terrain-w
     }
   }
   function connected(c) {
+    const stamp = generation;
     if (host && peers.size >= 3) { c.close(); return; }
     if (host) peers.set(c.peer, c); else hostConn = c;
-    c.on('data', d => packet(d,c));
+    c.on('data', d => { if (stamp === generation) packet(d,c); });
     c.on('close', () => {
+      if (stamp !== generation) return;
       if (host) {
         peers.delete(c.peer);
         roster = roster.filter(p => p.id !== c.peer);
-        if (!running) { relay({t:'roster',roster:roster}); publishRoster(); }
-        else bridge()?.drop(c.peer);
+        if (!running) {
+          relay({t:'roster',roster:roster}); publishRoster();
+          if (auto) {
+            clearTimeout(autoTimer);
+            if (roster.length >= 2) autoLaunchSoon();
+            else status('Ждём второго игрока…');
+          }
+        } else bridge()?.drop(c.peer);
       } else {
-        status('Соединение с хостом закрыто.');
+        if (auto && !running) autoAdvance('Хост недоступен. Ищем другую игру…');
+        else status('Соединение с хостом закрыто.');
         if (running) bridge()?.hostLost();
       }
     });
-    c.on('error', () => status('Ошибка P2P соединения.'));
+    c.on('error', () => {
+      if (stamp !== generation) return;
+      if (auto && !running && !host) autoAdvance('Не получилось соединиться. Ищем следующую игру…');
+      else status('Ошибка P2P соединения.');
+    });
     c.on('open', () => {
+      if (stamp !== generation) return;
       if (host) {
         status('Подключился игрок. Ожидаем его ник…');
       } else {
@@ -3993,10 +4053,10 @@ diffuseColor.rgb*=.94+macro*.06;`)},n.customProgramCacheKey=()=>"steel-terrain-w
     document.head.appendChild(s);
   }
   function close() {
-    running = false;
+    generation++; auto = false; running = false; clearAutoTimers();
     if (peer) { try { peer.destroy(); } catch (e) {} }
-    peer = null; peers.clear(); hostConn = null; roster=[]; room=''; myId='';
-    publishRoster();
+    peer = null; host = false; peers.clear(); hostConn = null; roster=[]; room=''; myId='';
+    publishRoster(); autoStatus();
   }
   function open() {
     if (!bridge()?.isGarage()) return;
@@ -4005,6 +4065,7 @@ diffuseColor.rgb*=.94+macro*.06;`)},n.customProgramCacheKey=()=>"steel-terrain-w
     $('p2pNick').value = nickname;
     $('p2pKey').textContent = '—';
     $('p2pLobby').hidden = false;
+    autoStatus();
     $('p2pLaunch').hidden = true;
     status('Создай комнату или введи код комнаты друга.');
   }
@@ -4045,6 +4106,74 @@ diffuseColor.rgb*=.94+macro*.06;`)},n.customProgramCacheKey=()=>"steel-terrain-w
       peer.on('error', e => status('Не удалось соединиться: ' + String(e.type || e.message)));
     });
   }
+
+  function autoScan(slot) {
+    if (!auto || running) return;
+    clearAutoTimers(); generation++;
+    if (slot >= AUTO_SLOTS) {
+      status('Все игровые комнаты заняты. Проверяем их ещё раз…');
+      autoRetryTimer = setTimeout(() => { if (auto && !running) autoScan(0); }, 2300);
+      return;
+    }
+    autoSlot = slot; host = true; room = 'АВТО';
+    roster=[]; peers.clear(); hostConn=null; myId='';
+    if (peer) { try { peer.destroy(); } catch (e) {} }
+    const stamp = generation, id = autoPeerId(slot);
+    const owner = new window.Peer(id, {debug:0});
+    peer = owner;
+    status('Автопоиск · проверяем комнату ' + (slot+1) + '…');
+    owner.on('connection', c => { if (auto && peer === owner && stamp === generation) connected(c); else c.close(); });
+    owner.on('open', connectedId => {
+      if (!auto || stamp !== generation || peer !== owner) return;
+      host=true; myId=connectedId;
+      roster=[{id:myId,name:nickname,type:bridge()?.tankType() || 0}];
+      publishRoster();
+      status('Ищем соперников… Вы создали открытую комнату для автопоиска.');
+    });
+    owner.on('error', error => {
+      if (!auto || running || stamp !== generation) return;
+      if (error.type === 'unavailable-id') {
+        try { owner.destroy(); } catch (e) {}
+        host=false;
+        const guest=new window.Peer(undefined,{debug:0});
+        peer=guest;
+        guest.on('open', guestId => {
+          if (!auto || stamp !== generation || peer !== guest) return;
+          myId=guestId; room='АВТО';
+          const c=guest.connect(id,{reliable:true,serialization:'json'});
+          connected(c);
+          status('Нашли комнату! Проверяем свободные места…');
+          autoProbeTimer=setTimeout(() => {
+            if (auto && stamp === generation && !running && !roster.some(p => p.id === myId)) {
+              autoAdvance('Хост не ответил. Продолжаем поиск…');
+            }
+          }, 6000);
+        });
+        guest.on('error', err => {
+          if (!auto || stamp !== generation || running) return;
+          if (err.type==='peer-unavailable') autoAdvance('Комната закрылась. Ищем дальше…');
+          else autoAdvance('Не удалось войти в комнату. Ищем дальше…');
+        });
+        guest.on('disconnected',()=>{if(auto && !running && stamp===generation) autoAdvance('Потеряна связь. Ищем снова…');});
+      } else autoAdvance('Ошибка сервера поиска. Пробуем следующий слот…');
+    });
+    owner.on('disconnected',()=>{if(auto&&!running&&stamp===generation)autoAdvance('Сервер поиска недоступен. Повторяем попытку…');});
+  }
+  function automatic() {
+    if (!bridge()?.isGarage()) return;
+    close();
+    auto=true; nickname=safeName($('p2pNick').value);
+    $('p2pKey').textContent='АВТОПОИСК';
+    autoStatus();
+    status('Ищем игроков… Комнаты подбираются автоматически.');
+    loadPeer(()=>{ if(auto && !peer) autoScan(0); });
+  }
+  function cancelAuto() {
+    if (!auto) return;
+    close(); $('p2pKey').textContent='—';
+    status('Автопоиск отменён. Можно создать комнату или войти по коду.');
+  }
+
   function launch() {
     if (!host || running || roster.length < 2) { status('Для начала нужны минимум 2 игрока.'); return; }
     const map=bridge()?.mapIndex() || 0;
@@ -4075,6 +4204,8 @@ diffuseColor.rgb*=.94+macro*.06;`)},n.customProgramCacheKey=()=>"steel-terrain-w
   $('p2pOpen').addEventListener('click',open);
   $('p2pCreate').addEventListener('click',create);
   $('p2pJoin').addEventListener('click',join);
+  $('p2pAuto').addEventListener('click',automatic);
+  $('p2pCancel').addEventListener('click',cancelAuto);
   $('p2pLaunch').addEventListener('click',launch);
   $('p2pBack').addEventListener('click',()=>{close();$('p2pLobby').hidden=true;});
   $('p2pCopy').addEventListener('click',async () => {
@@ -4082,6 +4213,7 @@ diffuseColor.rgb*=.94+macro*.06;`)},n.customProgramCacheKey=()=>"steel-terrain-w
     try { await navigator.clipboard.writeText(room); status('Код скопирован.'); }
     catch(e) { status('Скопируй код с экрана: ' + room); }
   });
+  autoStatus();
   setInterval(() => {
     if (!running) return;
     const now=performance.now();

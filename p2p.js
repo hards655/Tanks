@@ -179,6 +179,7 @@
       send({t:'hit',id:myId,target:id,amount:Math.min(500,amount)});
     },
     close: close,
+    stateNow() { const s=bridge()?.snapshot(); if(s) send({t:'state',id:myId,s:s,seq:++snapSeq}); },
     get active(){return running;}
   };
   $('p2pOpen').addEventListener('click',open);

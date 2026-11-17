@@ -10,6 +10,8 @@
   let peer = null, host = false, room = '', nickname = '', myId = '', running = false;
   let peers = new Map(), roster = [], hostConn = null, loading = false;
   let sendAt = 0, snapSeq = 0;
+  let packetsSent = 0, packetsReceived = 0, statesReceived = 0, lastSnapshotAt = 0, lastDataAt = 0, lastPingAt = 0, rtt = null;
+  let ready = false;
   // Public deterministic PeerJS IDs serve as queue slots; no peer listing is needed.
   let auto = false, autoSlot = 0, generation = 0, autoTimer = null;
   let autoProbeTimer = null, autoRetryTimer = null, autoRetrying = false;
@@ -53,12 +55,24 @@
     $('p2pLaunch').hidden = !host || running || auto;
     $('p2pLaunch').disabled = roster.length < 2;
   }
-  function sendConn(c, data) { if (c && c.open) { try { c.send(data); } catch (e) {} } }
+  function sendConn(c, data) {
+    if (!c || !c.open) return false;
+    try {
+      c.send(data);
+      packetsSent++;
+      return true;
+    } catch (e) {
+      console.warn('[STEEL P2P] Failed to send packet:', e);
+      return false;
+    }
+  }
   function relay(data, except = '') {
     peers.forEach((c, id) => { if (id !== except) sendConn(c, data); });
   }
   function packet(data, conn) {
-    if (!data || typeof data !== 'object' || !('t' in data)) return;
+    if (!data || typeof data !== 'object' || typeof data.t !== 'string') return;
+    packetsReceived++;
+    lastDataAt = performance.now();
     if (data.t === 'hello' && host) {
       if (running || roster.length >= 4) { sendConn(conn, {t:'error', code:'busy', msg:'Комната закрыта или заполнена'}); setTimeout(() => conn.close(), 250); return; }
       const name = safeName(data.name);
@@ -83,6 +97,7 @@
       roster = data.roster.slice(0, 4);
       const map = Math.max(0, Math.min(7, Number(data.map) || 0));
       running = true;
+      packetsSent=packetsReceived=statesReceived=0; lastDataAt=lastSnapshotAt=performance.now(); ready=false;
       $('p2pLobby').hidden = true;
       bridge()?.launch(roster, myId, map);
       return;
@@ -93,12 +108,36 @@
       return;
     }
     if (!running) return;
+    if (data.t === 'ready') {
+      // The guest has finished building the 3D scene. Re-send a fresh host snapshot.
+      if (host && roster.some(p => p.id === conn.peer)) {
+        const s = bridge()?.snapshot();
+        if (s) sendConn(conn, {t:'state', id:myId, seq:++snapSeq, s});
+        sendConn(conn, {t:'ready-ack'});
+      }
+      return;
+    }
+    if (data.t === 'ready-ack') {
+      const s = bridge()?.snapshot();
+      if (s) send({t:'state',id:myId,s,seq:++snapSeq});
+      return;
+    }
+    if (data.t === 'ping') {
+      if (Number.isFinite(data.ts)) sendConn(conn, {t:'pong',ts:data.ts});
+      return;
+    }
+    if (data.t === 'pong') {
+      if (Number.isFinite(data.ts)) rtt = Math.max(0,Math.round(performance.now()-data.ts));
+      return;
+    }
     const id = host ? conn.peer : String(data.id || '');
     if (!roster.some(p => p.id === id) && data.t !== 'hit') return;
     if (data.t === 'state') {
       if (!data.s || typeof data.s !== 'object') return;
+      statesReceived++;
+      lastSnapshotAt = performance.now();
       bridge()?.receiveState(id, data.s);
-      if (host) relay({t:'state', id:id, s:data.s}, conn.peer);
+      if (host) relay({t:'state', id:id, seq:data.seq, s:data.s}, conn.peer);
     } else if (data.t === 'fire') {
       if (data.kind !== 'cannon' && data.kind !== 'mg') return;
       bridge()?.receiveFire(id, data.kind, data.ammo, data.yaw, data.pitch);
@@ -161,7 +200,9 @@
     document.head.appendChild(s);
   }
   function close() {
-    generation++; auto = false; running = false; clearAutoTimers();
+    generation++; auto = false; running = false; ready = false; clearAutoTimers();
+    packetsSent = packetsReceived = statesReceived = 0; lastSnapshotAt = lastDataAt = lastPingAt = 0; rtt = null;
+    const hud=$('p2pHud'); if(hud) hud.hidden=true;
     if (peer) { try { peer.destroy(); } catch (e) {} }
     peer = null; host = false; peers.clear(); hostConn = null; roster=[]; room=''; myId='';
     publishRoster(); autoStatus();
@@ -288,6 +329,7 @@
     const msg={t:'start',roster:roster,map:map};
     relay(msg);
     running=true;
+    packetsSent=packetsReceived=statesReceived=0; lastDataAt=lastSnapshotAt=performance.now(); ready=false;
     $('p2pLobby').hidden=true;
     bridge()?.launch(roster,myId,map);
   }
@@ -296,6 +338,20 @@
     if (host) relay(data); else sendConn(hostConn,data);
   }
   window.STEEL_NET = {
+    ready() {
+      // Called only when the game reports the scene is actually playable.
+      if (!running) return;
+      ready = true;
+      const s=bridge()?.snapshot();
+      if(s) send({t:'state',id:myId,s,seq:++snapSeq});
+      if (!host) sendConn(hostConn,{t:'ready'});
+      else peers.forEach(c=>{
+        if (s) sendConn(c,{t:'state',id:myId,s,seq:++snapSeq});
+      });
+    },
+    get diagnostics() {
+      return {connected:running,host,ready,id:myId,players:roster.length,packetsSent,packetsReceived,statesReceived,rtt,secondsWithoutState:lastSnapshotAt?Math.round((performance.now()-lastSnapshotAt)/1000):null};
+    },
     fire(kind,ammo) {
       const s=bridge()?.snapshot();
       if (!s) return;
@@ -325,9 +381,29 @@
   setInterval(() => {
     if (!running) return;
     const now=performance.now();
-    if (now-sendAt<65) return;
-    sendAt=now;
-    const s=bridge()?.snapshot();
-    if (s) send({t:'state',id:myId,s:s,seq:++snapSeq});
-  },70);
+    if (now-sendAt>=50) {
+      sendAt=now;
+      const s=bridge()?.snapshot();
+      if (s) send({t:'state',id:myId,s,seq:++snapSeq});
+    }
+    if (now-lastPingAt>=2000) {
+      lastPingAt=now;
+      if (host) peers.forEach(c=>sendConn(c,{t:'ping',ts:now}));
+      else sendConn(hostConn,{t:'ping',ts:now});
+    }
+  },50);
+  setInterval(() => {
+    if (!running) return;
+    const hud=$('p2pHud');
+    const delay=lastSnapshotAt?Math.round((performance.now()-lastSnapshotAt)/1000):0;
+    window.STEEL_NET_DEBUG=window.STEEL_NET.diagnostics;
+    if (hud) {
+      hud.hidden=false;
+      const connected=statesReceived>0 && delay<4;
+      hud.classList.toggle('netWarning',!connected);
+      hud.textContent=connected
+        ? '🌐 P2P · данные '+statesReceived+' · '+(rtt===null?'ping…':rtt+' мс')
+        : '⚠ P2P · нет синхронизации '+delay+' c · RX '+packetsReceived;
+    }
+  },1000);
 })();

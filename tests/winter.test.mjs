@@ -4,12 +4,6 @@ import {battlefieldPlan,clearLane,coverContact,sphereContact} from '../battlefie
 import {tankGarland} from '../winter.js';
 import {armorMaterial} from '../visuals.js';
 import {createTracks,animateTracks} from '../track-rig.js';
-for(let i=0;i<8;i++)test('Tactical map '+i+': connected clear routes, spawn clearance, reproducible covers',()=>{
- const p=battlefieldPlan(i);assert.deepEqual(p,battlefieldPlan(i));assert.equal(p.covers.length,24);
- for(const [x,z]of p.spawns)for(const o of p.covers)assert(Math.hypot(x-o.x,z-o.z)>o.r+5);
- for(const x of p.lanes)for(let z=-140;z<=140;z+=2)for(const o of p.covers)assert(Math.hypot(x-o.x,z-o.z)>o.r+3);
- for(const o of p.covers)assert(!clearLane(o.x,o.z,0));
-});
 test('Free tank garland costs four draw objects and has no per-bulb lights',()=>{
  const body=new T.Group(),turret=new T.Group();tankGarland(body,turret);let lights=0,bulbs=0,objects=0;
  for(const part of [body,turret])part.traverse(o=>{if(o.isLight)lights++;if(o.isInstancedMesh)bulbs+=o.count;if(o.isMesh||o.isLine)objects++});

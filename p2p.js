@@ -20,7 +20,7 @@
   const AUTO_SLOTS = 12;
   let searchStarted=0;
   function networkFailure(message){close();status(message+' Проверь интернет и повтори поиск.');}
-  const autoPeerId = n => 'steel-tanks-auto-v2-slot-' + n;
+  const autoPeerId = n => 'steel-tanks-auto-v3-slot-' + n;
   function clearAutoTimers() {
     clearTimeout(autoTimer); clearTimeout(autoProbeTimer); clearTimeout(autoRetryTimer);
     autoTimer = autoProbeTimer = autoRetryTimer = null; autoRetrying = false;

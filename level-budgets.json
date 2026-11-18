@@ -1,0 +1,58 @@
+[
+  {
+    "name": "Зелёная долина",
+    "instances": 473,
+    "batches": 13,
+    "triangles": 202044,
+    "scope": "static level art only, excluding tanks and terrain"
+  },
+  {
+    "name": "Пустынный рубеж",
+    "instances": 484,
+    "batches": 9,
+    "triangles": 34556,
+    "scope": "static level art only, excluding tanks and terrain"
+  },
+  {
+    "name": "Зимний фронт",
+    "instances": 410,
+    "batches": 13,
+    "triangles": 211196,
+    "scope": "static level art only, excluding tanks and terrain"
+  },
+  {
+    "name": "Неоновый каньон",
+    "instances": 1907,
+    "batches": 7,
+    "triangles": 28052,
+    "scope": "static level art only, excluding tanks and terrain"
+  },
+  {
+    "name": "Ржавый мегаполис",
+    "instances": 1075,
+    "batches": 9,
+    "triangles": 23276,
+    "scope": "static level art only, excluding tanks and terrain"
+  },
+  {
+    "name": "Вулканический разлом",
+    "instances": 312,
+    "batches": 8,
+    "triangles": 27730,
+    "scope": "static level art only, excluding tanks and terrain"
+  },
+  {
+    "name": "Лунная база",
+    "instances": 410,
+    "batches": 12,
+    "triangles": 22244,
+    "scope": "static level art only, excluding tanks and terrain"
+  },
+  {
+    "name": "Затопленный порт",
+    "instances": 728,
+    "batches": 8,
+    "triangles": 13890,
+    "scope": "static level art only, excluding tanks and terrain"
+  }
+]

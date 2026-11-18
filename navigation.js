@@ -1,0 +1,8 @@
+import {footprint} from './authored-levels.js';
+// Cached walkability grid. A* runs at most once / 1.5 s for each bot needing a detour.
+export function navigationGrid(covers,step=6){const n=47,origin=-138,free=new Uint8Array(n*n);for(let z=0;z<n;z++)for(let x=0;x<n;x++)free[z*n+x]=+!covers.some(o=>footprint(origin+x*step,origin+z*step,o,3.5));return{free,n,origin,step}}
+export function findRoute(grid,start,end){const {free,n,origin,step}=grid,id=p=>Math.max(0,Math.min(n-1,Math.round((p.z-origin)/step)))*n+Math.max(0,Math.min(n-1,Math.round((p.x-origin)/step)));let from=id(start),to=id(end);
+ const nearest=i=>{if(free[i])return i;let best=-1,d=Infinity;for(let j=0;j<free.length;j++)if(free[j]){const a=(j%n-i%n)**2+(Math.floor(j/n)-Math.floor(i/n))**2;if(a<d){d=a;best=j}}return best};from=nearest(from);to=nearest(to);if(from<0||to<0)return[];
+ const g=new Float32Array(n*n).fill(Infinity),parent=new Int32Array(n*n).fill(-1),open=new Set([from]),closed=new Uint8Array(n*n),heur=i=>Math.hypot(i%n-to%n,Math.floor(i/n)-Math.floor(to/n));g[from]=0;
+ while(open.size){let cur=-1,best=Infinity;for(const i of open){const f=g[i]+heur(i);if(f<best){cur=i;best=f}}if(cur===to){const out=[];for(let i=to;i!==from&&i>=0;i=parent[i])out.push({x:origin+i%n*step,z:origin+Math.floor(i/n)*step});return out.reverse()}open.delete(cur);closed[cur]=1;const x=cur%n,z=Math.floor(cur/n);for(const[dx,dz]of [[1,0],[-1,0],[0,1],[0,-1],[1,1],[-1,1],[1,-1],[-1,-1]]){const a=x+dx,b=z+dz;if(a<0||b<0||a>=n||b>=n)continue;const j=b*n+a;if(!free[j]||closed[j]||!free[z*n+a]||!free[b*n+x])continue;const score=g[cur]+Math.hypot(dx,dz);if(score<g[j]){g[j]=score;parent[j]=cur;open.add(j)}}}return[];
+}

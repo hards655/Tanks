@@ -1,3 +1,6 @@
+import {navigationGrid,findRoute} from './navigation.js';
+import {LEVELS,authoredHeight,footprint} from './authored-levels.js';
+import {buildAuthoredLevel} from './level-art.js';
 import {battlefieldPlan,clearLane,coverContact,sphereContact} from './battlefield.js';
 import {tankGarland,winterHangar} from './winter.js';
 import {branchingTree} from './foliage.js';
@@ -61,7 +64,7 @@ const trackLinks=createTracks(body,geo.box,mat(0x252b29));
 const turret=new T.Group();turret.position.set(0,1.75,-.25);body.add(turret);const cup=mesh('cyl',c,0,.08,0,1.35,.7,1.2,turret);cup.rotation.y=Math.PI/8;mesh('box',c,0,.38,-.08,1.8,.4,1.75,turret);mesh('cyl',0x454f3f,-.55,.7,-.3,.4,.15,.4,turret);mesh('cyl',0x202b22,.72,1.15,-.7,.025,1.7,.025,turret);mesh('box',team?0xb15f4b:0xd3e48b,0,.45,.82,.65,.14,.04,turret);
 const gun=new T.Group();gun.position.set(0,.18,.9);turret.add(gun);mesh('box',c,0,0,.15,.7,.6,.6,gun);const barrel=mesh('cyl',c,0,0,1.65,.13,3.1,.13,gun);barrel.rotation.x=Math.PI/2;mesh('box',0x3a4638,0,0,3.2,.36,.3,.55,gun);mesh('box',0x111713,0,0,3.49,.18,.14,.02,gun);for(let i=0;i<3;i++)mesh('box',0x4b5343,-.8+i*.8,1.72,-1.55,.55,.15,.7,body);root.scale.setScalar(d.scale);const extra=detailTank({root,body,turret,gun},type,team,team?'factory':save.loadout.paint,mesh);modelGear(turret,body,gun,team);if(team===0&&save.settings.garland!==false)tankGarland(body,turret);gun.scale.z=team?1:(WEAPONS[save.loadout.weapon]||WEAPONS.standard).length;for(const assembly of [body,turret,gun,extra.details,extra.mgMount])batchRigid(assembly,wheels);return{root,body,turret,gun,wheels,trackLinks,trackPhase:0,...extra}}
 let seed=7;function rand(){seed=(seed*1664525+1013904223)>>>0;return seed/4294967296}
-function terrain(x,z){return .5*Math.sin(x*.035)*Math.cos(z*.043)+.18*Math.sin(z*.09)}
+let levelIndex=-1;function terrain(x,z){return authoredHeight(levelIndex,x,z)}
 function clearWorld(){for(const t of tanks)t.marker?.remove?.();world.traverse(o=>{if(o.userData.ownedGeometry)o.geometry.dispose();if(o.userData.ownedMaterial){o.material.map?.dispose();o.material.dispose()}});world.clear();tanks=[];obstacles=[];shots=[];particles=[]}
 
 // Enhanced procedural environments and a modeled industrial hangar.
@@ -85,127 +88,8 @@ function environmentDetail(idx,garageMode=false){
   for(let z=-16;z<=16;z+=8){beam(-15,1,z,2,2,2,0x7c654a);beam(15,1,z,2,2,2,0x7c654a)}
   return;
  }
- if(idx===6){ // LUNA-9: fortified lunar research complex, distant craters and industrial infrastructure.
-  scene.fog.density=.00115;
-  const steel=0x788da2,bright=0xd8e3e9,dark=0x293847,blue=0x1d5a86,orange=0xe9a75b;
-  const box=(x,y,z,w,h,d,c=steel)=>beam(x,y,z,w,h,d,c);
-  const cylinder=(x,y,z,r,h,c=steel)=>mesh('cyl',c,x,y,z,r,h,r);
-  // Moon surface: crater rims made of separated rocks; keep the three combat lanes open.
-  for(let i=0;i<34/step;i++){
-   const x=(rand()-.5)*335,z=(rand()-.5)*335;
-   if(Math.abs(x)<35||Math.abs(z)<35||Math.hypot(x,z)<65)continue;
-   const radius=4+rand()*10;
-   mesh('sphere',0x52606c,x,.03,z,radius*.86,.12,radius*.86);
-   for(let j=0;j<9;j++){const angle=j*Math.PI*2/9,rr=radius*(.87+rand()*.24);
-    const stone=mesh('sphere',j%2?0x8a929b:0x667482,x+Math.cos(angle)*rr,.1,z+Math.sin(angle)*rr,1.5+rand()*1.5,.7+rand()*.4,1.5+rand()*1.4);
-    stone.rotation.y=angle;
-   }
-  }
-  // Habitats have segmented pressure shells, airlocks, panoramic windows and service struts.
-  const habitat=(x,z,scale=1)=>{
-   const g=new T.Group();g.position.set(x,terrain(x,z),z);g.scale.setScalar(scale);world.add(g);
-   const part=(shape,c,px,py,pz,sx,sy,sz)=>mesh(shape,c,px,py,pz,sx,sy,sz,g);
-   part('cyl',dark,0,.7,0,7,1.4,7);
-   part('sphere',bright,0,4,0,7,4.5,7);
-   part('cyl',steel,0,1.4,0,7.25,.6,7.25);
-   part('cyl',dark,0,7.35,0,2.3,.5,2.3);
-   for(let j=0;j<12;j++){
-    const q=j*Math.PI/6,xx=Math.cos(q)*6.65,zz=Math.sin(q)*6.65;
-    const rib=part('box',steel,xx,3.5,zz,.45,4.5,.6);rib.rotation.y=-q;
-    if(j%2===0){const win=part('box',blue,xx*.89,4.1,zz*.89,1.55,1.25,.24);win.rotation.y=-q;}
-   }
-   part('box',dark,0,1.9,7,3.7,3.8,2.2);
-   part('box',orange,0,2.1,8.17,2.5,2.5,.2);
-   part('box',blue,0,2.1,8.3,1.6,1.6,.12);
-   for(const side of [-1,1]){
-    part('box',dark,side*5.7,.8,5,1.1,1.6,1.1);
-    part('box',orange,side*5.7,1.7,5,1.4,.15,1.4);
-   }
-  };
-  habitat(-113,-92,1.1);habitat(115,93,1);habitat(-115,96,.85);habitat(115,-95,.85);
-  // Elevated central command platform: recognizable silhouette, far enough from spawn points.
-  const cx=62,cz=112;
-  cylinder(cx,1.4,cz,13,2.8,dark);
-  cylinder(cx,3.1,cz,12,.65,steel);
-  for(let i=0;i<12;i++){
-   const q=i*Math.PI/6;
-   const p=mesh('box',orange,Math.cos(q)*11.8,3.55,Math.sin(q)*11.8,1.9,.22,.48);p.rotation.y=-q;
-  }
-  cylinder(cx,6.3,cz,7.5,5.6,steel);
-  cylinder(cx,9.25,cz,8.2,.7,dark);
-  for(let i=0;i<16;i++){const q=i*Math.PI/8;
-   const p=mesh('box',i%4===0?orange:blue,Math.cos(q)*7.42,6.8,Math.sin(q)*7.42,2.35,2.3,.2);p.rotation.y=-q;
-  }
-  cylinder(cx,11.5,cz,2.2,4.5,steel);
-  mesh('sphere',0xc4e9f7,cx,14.4,cz,2.1,1.1,2.1);
-  // Satellite arrays: many individually framed photovoltaic cells, structural booms and a tracking dish.
-  const array=(x,z,rotation=0)=>{
-   const g=new T.Group();g.position.set(x,terrain(x,z),z);g.rotation.y=rotation;world.add(g);
-   const part=(shape,c,px,py,pz,sx,sy,sz)=>mesh(shape,c,px,py,pz,sx,sy,sz,g);
-   for(const side of [-1,1]){
-    part('box',steel,side*11,1.7,0,18,.28,.55);
-    for(let col=0;col<8;col++)for(let row=0;row<3;row++){
-     const px=side*(3+col*2.25),pz=(row-1)*2.1;
-     part('box',dark,px,2.05,pz,2.08,.12,1.95);
-     part('box',blue,px,2.13,pz,1.84,.04,1.7);
-     part('box',0x9dc7e3,px,2.17,pz,.045,.025,1.7);
-    }
-   }
-   part('cyl',dark,0,.8,0,1.2,1.6,1.2);
-   part('cyl',steel,0,2.6,0,.32,2.5,.32);
-   part('sphere',bright,0,4.2,0,1.2,.42,1.2);
-   part('sphere',blue,0,4.65,0,.4,.4,.4);
-  };
-  array(-104,35,.4);array(104,-35,-.4);array(-40,112,.15);array(40,-112,-.15);
-  // Cargo yard, antenna mast and pressurized connecting tubes.
-  for(const side of [-1,1]){
-   const x=side*83,z=side*116;
-   for(let j=0;j<5;j++){
-    box(x+(j%3)*4,1.3,z+Math.floor(j/3)*5,3.6,2.5,4.3,j%2?0x8b9ca6:0xb47e51);
-    box(x+(j%3)*4,2.65,z+Math.floor(j/3)*5,3.7,.15,4.4,dark);
-   }
-   box(side*105,2.4,0,4.5,4.8,24,steel);
-   for(let j=-2;j<=2;j++)box(side*105,2.5,j*4.2,4.8,.25,.35,dark);
-   box(side*105,2.3,12,3.2,2.8,.12,blue);
-  }
-  box(-135,10,0,.7,20,.7,steel);
-  for(let y=3;y<20;y+=3){box(-135,y,0,3.6,.2,.25,dark);box(-135,y,0,.25,.2,3.6,dark)}
-  mesh('sphere',orange,-135,21,0,.8,.8,.8);
-  for(let i=0;i<4;i++){const q=i*Math.PI/2;const p=mesh('box',bright,-135+Math.cos(q)*2.5,18,Math.sin(q)*2.5,4,.3,.5);p.rotation.y=-q}
-  // Distant lander and launchpad, decorative geometry beyond the playable center.
-  cylinder(145,.45,-145,15,.9,dark);
-  for(let j=0;j<4;j++){const q=j*Math.PI/2;const x=145+Math.cos(q)*7,z=-145+Math.sin(q)*7;
-   box(x,2,z,.55,4,.55,steel);mesh('sphere',orange,x,4.3,z,.5,.5,.5)}
-  cylinder(145,6,-145,3.4,9,bright);
-  mesh('cone',bright,145,12.2,-145,3.5,4.6,3.5);
-  for(let j=0;j<4;j++){const q=j*Math.PI/2;box(145+Math.cos(q)*4,3.3,-145+Math.sin(q)*4,1.2,5.8,1.2,steel)}
- }else if(idx===5){ // Lava channels, vents, volcanic caldera.
-  scene.fog.density=.004;
-  for(let i=0;i<30/step;i++){let x=(rand()-.5)*245,z=(rand()-.5)*245;if(Math.abs(x)<17||Math.abs(z)<17)continue;
-   let r=3+rand()*7;const a=mesh('box',0x30272b,x,r*.7,z,r*.8,r*1.5,r*.7);a.rotation.set(rand()*.6,rand()*6.28,rand()*.6);
-   const lava=beam(x,.08,z,r*.65,.12,1.1,0xff4d0a);lava.rotation.y=rand()*6;
-   if(i%4===0){mesh('cyl',0x4b3032,x,1.3,z,1.3,2.6,1.3);mesh('sphere',0xc16d44,x,3.2,z,1.6,1.3,1.6)}
-  }
-  for(let i=0;i<8/step;i++){const x=(rand()-.5)*200,z=(rand()-.5)*200;const a=mesh('box',0x241e25,x,8,z,12,16,11);a.rotation.set(rand()*.4,rand()*6.28,rand()*.35);mesh('sphere',0xff6025,x,15.5,z,3,.5,3)}
- }else if(idx===7){ // Harbor: cranes, piers, containers and flooded basins.
-  for(let i=0;i<22/step;i++){const x=(rand()-.5)*230,z=(rand()-.5)*230;if(Math.abs(x)<14||Math.abs(z)<14)continue;
-   beam(x,.04,z,8,.06,12,0x277f9a);for(let j=0;j<3;j++)beam(x+(j-1)*2,1.4,z,2,2.8,5,[0xa35c3d,0x4d7386,0x7a8b5e][j]);}
-  for(let i=0;i<5/step;i++){let x=-100+i*42,z=-95;beam(x,8,z,.9,16,.9,0xe0a84e);beam(x+6,16,z,14,.8,.8,0xe0a84e);beam(x+12,10,z,.12,12,.12,0xbfc4c6)}
- }else if(idx===3){ // Neon city canyon.
-  for(let i=0;i<30/step;i++){let x=(rand()-.5)*230,z=(rand()-.5)*230;if(Math.abs(x)<16||Math.abs(z)<16)continue;
-   let h=12+rand()*24;beam(x,h/2,z,6,h,7,0x272d49);
-   for(let y=3;y<h;y+=4)beam(x,y,z+3.55,4,.3,.1,i%2?0x22d8eb:0xe649b7);
-  }
- }else if(idx===4){ // Ruined city: fractured towers and wreckage.
-  for(let i=0;i<30/step;i++){let x=(rand()-.5)*230,z=(rand()-.5)*230;if(Math.abs(x)<15||Math.abs(z)<15)continue;
-   let h=4+rand()*16;beam(x,h/2,z,5,h,6,0x716a62);beam(x,h,z,6,.3,7,0x4d4d4a);
-   for(let j=0;j<3;j++)beam(x+(rand()-.5)*7,.25,z+(rand()-.5)*7,2,.4,2,0x504b48);
-  }
- }
 }
 
-
-// Stylized AAA-comic atmosphere: individually graded lighting and inked landmarks.
 function applyComicArt(idx,garageMode=false){
  const themes=[[0xffdfad,0x9dbdb0,1.12],[0xffbc83,0xd8a37b,1.2],[0xd8ecff,0x91b7d7,1.13],[0xc38dff,0x565c9c,1.22],[0xffc69b,0xa18a7c,1.1],[0xff8754,0x9c4e42,1.22],[0xe0ecff,0x587aab,1.05],[0xb0e8df,0x7caeb2,1.1]];
  const [key,fill,exposure]=garageMode?[0xffefd9,0xc1d7eb,1.05]:themes[idx];
@@ -418,7 +302,7 @@ function steelBatchStatic(){
   batch.computeBoundingSphere();world.add(batch);
  }
 }
-function buildMap(idx,garage=false){const quality=save.settings.quality;try{if(mode==='net')save.settings.quality='medium';steelBuildMap(idx,garage);steelBatchStatic()}finally{save.settings.quality=quality}}
+function buildMap(idx,garage=false){levelIndex=garage?-1:idx;const quality=save.settings.quality;try{if(mode==='net')save.settings.quality='medium';steelBuildMap(idx,garage);steelBatchStatic()}finally{save.settings.quality=quality}}
 function steelBuildMap(idx,garage=false){
  clearWorld();seed=9281+idx*701;scene.fog.density=.0025;
  const palettes=[
@@ -443,111 +327,9 @@ function steelBuildMap(idx,garage=false){
  buildTacticalArena(idx,groundColor,stone);
 }
 
-function buildTacticalArena(idx,groundColor,stone){
- const plan=battlefieldPlan(idx);
- for(const o of plan.covers){
-  const root=new T.Group();root.position.set(o.x,terrain(o.x,o.z),o.z);root.rotation.y=o.angle;world.add(root);
-  const color=idx===2?0x89999e:stone;
-  const base=mesh('box',color,0,o.h/2,0,o.w,o.h,o.d,root);base.material=stoneMaterial(color);
-  if(o.kind===0){mesh('box',0x4d5652,0,o.h+.2,0,o.w+.8,.4,o.d+.8,root);for(const side of [-1,1])mesh('box',0x182323,side*2,o.h*.75,3.52,1.3,.45,.05,root)}
-  if(o.kind===1){for(let k=0;k<4;k++)mesh('box',color,-3+k*2,o.h+.7,0,.6,1.4,o.d,root)}
-  if(o.kind===2){mesh('box',0x56616a,0,o.h+.3,0,o.w,.55,o.d,root);for(let k=-3;k<=3;k++)mesh('box',0x6b7880,k,o.h*.5,3.6,.09,o.h,.08,root)}
-  batchRigid(root);obstacles.push({...o});
- }
- // Three routes plus a transverse connection, wide enough for heavy tanks.
- for(const x of plan.lanes){const g=new T.PlaneGeometry(18,290,1,48);g.rotateX(-Math.PI/2);g.translate(x,0,0);const a=g.attributes.position;for(let i=0;i<a.count;i++)a.setY(i,terrain(a.getX(i),a.getZ(i))-.05);g.computeVertexNormals();const road=new T.Mesh(g,mat(idx===2?0xa0b1b4:0x746d5c));road.userData.ownedGeometry=true;world.add(road)}
- const avoid=(x,z,r)=>clearLane(x,z,r)||obstacles.some(o=>Math.hypot(o.x-x,o.z-z)<o.r+r+4);
- const oldSeed=seed;seed=3001+idx*97;
- if([0,2,7].includes(idx))scatterModeledTrees(save.settings.quality==='low'?18:36,idx===2?1:2,avoid,rand,terrain);
- for(let i=0;i<24;i++){const a=i*Math.PI/12,x=Math.sin(a)*175,z=Math.cos(a)*175;const rock=new T.Mesh(rockGeometry(i%3,true),stoneMaterial(stone));rock.scale.set(12,10+(i%4)*5,13);rock.position.set(x,5,z);world.add(rock)}
- seed=oldSeed;
- if(idx===6){environmentDetail(idx,false);buildLunarInteriors()}
- applyComicArt(idx,false);
-}
-// Walkable lunar tunnels and rooms: roofs are raised, both ends open and side walls are collidable.
-function buildLunarInteriors(){
- const low=save.settings.quality==='low';
- const hull=0x718394,trim=0xc3d0d7,inside=0x293947,light=0xf3c17a,glass=0x3d8eb3;
- const block=(x,y,z,w,h,d,c=hull)=>mesh('box',c,x,y,z,w,h,d);
- // Collision is approximated by small circles, matching the existing tank collision engine.
- const barrier=(x,z,r=1.8)=>obstacles.push({x,z,r,h:4,w:r*2,d:r*2,angle:0,kind:0});
- const wallZ=(x,z,length,thick=1.1,height=5)=>{
-  block(x,terrain(x,z)+height/2,z,thick,height,length);
-  for(let dz=-length/2+1;dz<=length/2-1;dz+=3.2)barrier(x,z+dz,thick*.7);
- };
- const wallX=(x,z,length,thick=1.1,height=5)=>{
-  block(x,terrain(x,z)+height/2,z,length,height,thick);
-  for(let dx=-length/2+1;dx<=length/2-1;dx+=3.2)barrier(x+dx,z,thick*.7);
- };
- const corridor=(x,z,length)=>{
-  // The passage runs north-south, wide enough for tanks and open at both ends.
-  const width=15;
-  block(x,terrain(x,z)-.06,z,width,.22,length,inside);
-  wallZ(x-width/2,z,length);
-  wallZ(x+width/2,z,length);
-  block(x,terrain(x,z)+6.3,z,width+2,1.1,length,trim);
-  for(let dz=-length/2+4;dz<length/2;dz+=9){
-   const yy=terrain(x,z+dz);
-   for(const side of [-1,1]){
-    block(x+side*(width/2-.35),yy+4.4,z+dz,.35,.5,1.5,light);
-    block(x+side*(width/2+.55),yy+.3,z+dz,.8,.6,1.2,inside);
-   }
-   block(x,yy+5.72,z+dz,4,.14,1.4,glass);
-  }
-  // Highly visible entrance frames and yellow hazard stripes.
-  for(const end of [-1,1]){
-   const ez=z+end*length/2,ey=terrain(x,ez);
-   for(const side of [-1,1]){
-    block(x+side*(width/2+.5),ey+3.3,ez,1.6,6.6,1.5,trim);
-    block(x+side*(width/2+.5),ey+.4,ez+end*1.1,1.8,.3,1.3,light);
-   }
-   block(x,ey+6.7,ez,width+3,1.2,1.7,trim);
-   block(x,ey+6.7,ez+end*.95,5,.4,.3,light);
-  }
- };
- const room=(x,z)=>{
-  // Square maintenance hall with a wide entrance on each of its north/south walls.
-  const w=30,d=28,door=15;
-  block(x,terrain(x,z)-.08,z,w,.25,d,inside);
-  for(const side of [-1,1]){
-   wallZ(x+side*w/2,z,d,1.2,7);
-   for(const half of [-1,1]){
-    const segment=(w-door)/2;
-    const xx=x+half*(door/2+segment/2);
-    wallX(xx,z+side*d/2,segment,1.2,7);
-   }
-   block(x,terrain(x,z)+7.5,z+side*d/2,door+2,1.1,1.5,trim);
-  }
-  // Roof beams rather than a solid roof: tanks remain visible from the game camera.
-  for(let dz=-9;dz<=9;dz+=9){
-   block(x,terrain(x,z)+8.2,z+dz,w+2,.75,1.25,trim);
-   block(x,terrain(x,z)+8.8,z+dz,5,.3,1.3,light);
-  }
-  for(const side of [-1,1]){
-   const px=x+side*11;
-   for(let j=-1;j<=1;j++){
-    const zz=z+j*7;
-    block(px,terrain(px,zz)+1,zz,2.6,2,3.3,j===0?glass:hull);
-    block(px,terrain(px,zz)+2.15,zz,2.8,.25,3.5,trim);
-   }
-   block(x+side*12,terrain(x,z)+5.4,z,2.5,1.5,9,glass);
-  }
-  block(x,terrain(x,z)+.2,z,4,.12,7,0xc9a34d);
-  for(const dz of [-9,9])block(x,terrain(x,z)+.2,z+dz,8,.12,.45,light);
- };
- // Two symmetrical, connected routes; leave the central arena and spawns unobstructed.
- for(const x of [-76,76]){
-  corridor(x,-46,36);
-  room(x,0);
-  corridor(x,46,36);
-  // Side equipment outside the traversable passage.
-  for(const z of [-44,44]){
-   const px=x+(x<0?-13:13);
-   block(px,terrain(px,z)+2.3,z,4,4.6,7,inside);
-   block(px,terrain(px,z)+4.8,z,4.5,.5,7,trim);
-   block(px,terrain(px,z)+2.7,z+(z<0?-3.55:3.55),3.2,2.6,.15,glass);
-  }
- }
+let navGrid=null;function buildTacticalArena(idx){
+ const plan=battlefieldPlan(idx);obstacles.push(...plan.covers.map(o=>({...o})));
+ navGrid=navigationGrid(obstacles);buildAuthoredLevel(world,idx,save.settings.quality);applyComicArt(idx,false);
 }
 const occludedMaterial=new T.LineBasicMaterial({color:0xff775e,transparent:true,opacity:.65,depthTest:true,depthWrite:false,depthFunc:T.GreaterDepth});
 function addEnemyOverlay(t){
@@ -573,7 +355,7 @@ function tourUI(){
  if(!panel){panel=document.createElement('div');panel.id='tourPanel';panel.style.cssText='position:fixed;z-index:110;top:12px;left:12px;right:12px;display:flex;align-items:center;justify-content:center;gap:7px;flex-wrap:wrap;pointer-events:none';document.body.appendChild(panel)}
  panel.hidden=false;
  panel.innerHTML='<div style="pointer-events:auto;background:#101923e8;color:white;border:1px solid #8194a4;border-radius:12px;padding:9px;display:flex;gap:7px;align-items:center;flex-wrap:wrap;font:600 13px system-ui"><b id="tourName" style="padding:0 9px"></b><button id="tourPrev">◀ Карта</button><button id="tourNext">Карта ▶</button><button id="tourCloser">＋</button><button id="tourFarther">－</button><button id="tourExit">✕ Назад</button><small style="opacity:.8">Тяни экран — осмотр · колёсико — масштаб</small></div>';
- const label=()=>$('tourName').textContent=MAP_NAMES[mapIndex]+' · '+(mapIndex+1)+'/8';
+ const label=()=>$('tourName').textContent=MAP_NAMES[mapIndex]+' · '+(mapIndex+1)+'/8 · '+LEVELS[mapIndex].brief;
  label();
  $('tourPrev').onclick=()=>switchTourMap(-1);$('tourNext').onclick=()=>switchTourMap(1);
  $('tourCloser').onclick=()=>tourDistance=clamp(tourDistance*.8,12,220);
@@ -610,9 +392,9 @@ function impact(s,t){if(s.kind==='mg'){impactMG(s,t);return}const d=s.owner,fron
  if(t.isPlayer&&save.loadout.equipment.includes('spallLiner')&&(s.ammo===2||s.ammo===4))damage*=.8;
  if(d.isPlayer)battleDamage+=actualDamage(t.hp,damage);
  if(!(d.isPlayer&&mode==='net'&&t.netId))t.hp-=damage;if(d.isPlayer&&mode==='net'&&t.netId&&damage>0)window.STEEL_NET?.hit(t.netId,damage);if(d.isPlayer){$('hit').textContent=ricochet?'РИКОШЕТ':`${Math.round(damage)} · ${pen>=armor?'ПРОБИТИЕ':'БРОНЯ'}`;setTimeout(()=>$('hit').textContent='',1200)}effect(s.p,'blast',mobile?9:16);effect(s.p,'smoke',mobile?3:5);sound('hit');if(damage>0&&Math.random()<(t.isPlayer&&save.loadout.equipment.includes('wetRack')?.1:.25)){if(Math.random()<.5)t.track=t.isPlayer&&save.loadout.equipment.includes('heavyTracks')?2:4;else t.engine=8;if(t.isPlayer)notify('МОДУЛЬ ПОВРЕЖДЁН · Используй ремонт')}if(t.hp<=0)destroyTank(t,d)}
-function blocked(x,z,r=2.5){return Math.abs(x)>145||Math.abs(z)>145||obstacles.some(o=>{const dx=x-o.x,dz=z-o.z,radius=o.r+r;return dx*dx+dz*dz<radius*radius})}
-function lineClear(a,b){for(const o of obstacles){const dx=b.x-a.x,dz=b.z-a.z,f=clamp(((o.x-a.x)*dx+(o.z-a.z)*dz)/(dx*dx+dz*dz),0,1);if(Math.hypot(a.x+dx*f-o.x,a.z+dz*f-o.z)<o.r)return false}return true}
-function ai(t,dt){t.think-=dt;if(t.think<=0){t.think=.18+rand()*.18;t.target=tanks.filter(o=>!o.dead&&o.team!==t.team).sort((a,b)=>Math.hypot(t.x-a.x,t.z-a.z)-Math.hypot(t.x-b.x,t.z-b.z))[0]}const q=t.target;if(!q||q.dead){t.throttle=0;return}const dx=q.x-t.x,dz=q.z-t.z,dist=Math.hypot(dx,dz),desired=Math.atan2(dx,dz);t.turretYaw+=clamp(angle(desired-t.turretYaw),-dt*.8,dt*.8);t.pitch=Math.atan2(terrain(q.x,q.z)-terrain(t.x,t.z),dist)+.002;const visible=lineClear(t,q);let heading=desired,retreat=t.hp<t.maxHp*.27;if(mode==='flag'){if(flagCarrier===t)heading=desired+Math.PI;else{const fx=flagCarrier?.x??0,fz=flagCarrier?.z??0;heading=Math.atan2(fx-t.x,fz-t.z)}retreat=false;}if(retreat){let cover=obstacles.reduce((best,o)=>!best||Math.hypot(o.x-t.x,o.z-t.z)<Math.hypot(best.x-t.x,best.z-t.z)?o:best,null);if(cover){const vx=cover.x-q.x,vz=cover.z-q.z,l=Math.hypot(vx,vz);heading=Math.atan2(cover.x+vx/l*(cover.r+7)-t.x,cover.z+vz/l*(cover.r+7)-t.z)}else heading+=Math.PI}let avoid=0;for(const o of obstacles){const ox=o.x-t.x,oz=o.z-t.z,od=Math.hypot(ox,oz),diff=angle(Math.atan2(ox,oz)-t.yaw);if(od<o.r+12&&Math.abs(diff)<1.1)avoid+=diff>0?-1.7:1.7}heading+=avoid;t.steer=clamp(angle(heading-t.yaw)*1.8,-1,1);t.throttle=mode==='flag'||retreat||dist>42||!visible? .75:.12;if(Math.abs(angle(heading-t.yaw))>1.1)t.throttle=.16;if(visible&&dist<125&&Math.abs(angle(desired-t.turretYaw))<.055&&t.cool<=0){t.pitch+=(rand()-.5)*.014;fire(t)}}
+function blocked(x,z,r=2.5){return Math.abs(x)>145||Math.abs(z)>145||obstacles.some(o=>{return footprint(x,z,o,r)})}
+function lineClear(a,b){const p={x:a.x,y:terrain(a.x,a.z)+2,z:a.z},q={x:b.x,y:terrain(b.x,b.z)+2,z:b.z};return !obstacles.some(o=>coverContact(p,q,o,terrain(o.x,o.z))!==null)}
+function ai(t,dt){t.think-=dt;if(t.think<=0){t.think=.18+rand()*.18;t.target=tanks.filter(o=>!o.dead&&o.team!==t.team).sort((a,b)=>Math.hypot(t.x-a.x,t.z-a.z)-Math.hypot(t.x-b.x,t.z-b.z))[0]}const q=t.target;if(!q||q.dead){t.throttle=0;return}const dx=q.x-t.x,dz=q.z-t.z,dist=Math.hypot(dx,dz),desired=Math.atan2(dx,dz);t.turretYaw+=clamp(angle(desired-t.turretYaw),-dt*.8,dt*.8);t.pitch=Math.atan2(terrain(q.x,q.z)-terrain(t.x,t.z),dist)+.002;const visible=lineClear(t,q);let heading=desired,retreat=t.hp<t.maxHp*.27;if(mode==='flag'){if(flagCarrier===t)heading=desired+Math.PI;else{const fx=flagCarrier?.x??0,fz=flagCarrier?.z??0;heading=Math.atan2(fx-t.x,fz-t.z)}retreat=false;}if(retreat){let cover=obstacles.reduce((best,o)=>!best||Math.hypot(o.x-t.x,o.z-t.z)<Math.hypot(best.x-t.x,best.z-t.z)?o:best,null);if(cover){const vx=cover.x-q.x,vz=cover.z-q.z,l=Math.hypot(vx,vz);heading=Math.atan2(cover.x+vx/l*(cover.r+7)-t.x,cover.z+vz/l*(cover.r+7)-t.z)}else heading+=Math.PI}if(!visible&&!retreat&&mode!=='flag'&&navGrid){t.routeTimer=(t.routeTimer||0)-dt;if(t.routeTimer<=0){t.route=findRoute(navGrid,t,q);t.routeTimer=1.5}while(t.route?.length&&Math.hypot(t.route[0].x-t.x,t.route[0].z-t.z)<5)t.route.shift();if(t.route?.length)heading=Math.atan2(t.route[0].x-t.x,t.route[0].z-t.z)}let avoid=0;for(const o of obstacles){const ox=o.x-t.x,oz=o.z-t.z,od=Math.hypot(ox,oz),diff=angle(Math.atan2(ox,oz)-t.yaw);if(footprint(t.x+Math.sin(t.yaw)*10,t.z+Math.cos(t.yaw)*10,o,3)&&Math.abs(diff)<1.3)avoid+=diff>0?-1.7:1.7}heading+=avoid;t.steer=clamp(angle(heading-t.yaw)*1.8,-1,1);t.throttle=mode==='flag'||retreat||dist>42||!visible? .75:.12;if(Math.abs(angle(heading-t.yaw))>1.1)t.throttle=.16;if(visible&&dist<125&&Math.abs(angle(desired-t.turretYaw))<.055&&t.cool<=0){t.pitch+=(rand()-.5)*.014;fire(t)}}
 const keys={},joy={x:0,y:0},pointers=new Map();let fireHeld=false,mgHeld=false,drag,joyPointer=null;const cameraPointers=new Map();let viewYaw=0,viewPitch=.04;
 function updateTank(t,dt){if(mode==='net'&&t.netId&&!t.isPlayer){const s=t.netTarget;if(s){const k=1-Math.exp(-dt*13);t.x+=(s.x-t.x)*k;t.z+=(s.z-t.z)*k;t.yaw+=angle(s.yaw-t.yaw)*k;t.turretYaw+=angle(s.turretYaw-t.turretYaw)*k;t.pitch+=(s.pitch-t.pitch)*k;t.speed=s.speed;t.steer=s.steer||0;t.hp=s.hp;if(s.dead&&!t.dead)destroyTank(t,{isPlayer:false})}t.root.position.set(t.x,terrain(t.x,t.z),t.z);t.body.rotation.y=t.yaw;t.turret.rotation.y=angle(t.turretYaw-t.yaw);t.gun.rotation.x=-t.pitch;t.wheels.forEach(w=>w.rotation.x+=t.speed*dt*1.5);t.trackTick=(t.trackTick||0)+dt;if(t.trackTick>=1/18){animateTracks(t,t.trackTick);t.trackTick=0}tickMG(t.mg,dt);t.gun.position.z=lerp(t.gun.position.z,.9,1-Math.exp(-dt*14));t.details.visible=Math.hypot(t.x-player.x,t.z-player.z)<55;return}tickMG(t.mg,dt);t.mgMount.rotation.x=-t.pitch;t.cool=Math.max(0,t.cool-dt);t.track=Math.max(0,t.track-dt);t.engine=Math.max(0,t.engine-dt);t.gun.position.z=lerp(t.gun.position.z,.9,1-Math.exp(-dt*14));if(t.dead){if(Math.random()<dt*1.5){effect(new T.Vector3(t.x,2,t.z),'smoke',1)};return}if(t.isPlayer){const steerSign=save.settings.invertJoystick?-1:1,rawX=clamp((keys.KeyA?-1:0)+(keys.KeyD?1:0)+joy.x*steerSign,-1,1),rawY=clamp((keys.KeyW?1:0)-(keys.KeyS?1:0)-joy.y*(save.settings.invertJoystickY?-1:1),-1,1);t.inputX=damp(t.inputX,rawX,12,dt);t.inputY=damp(t.inputY,rawY,rawY===0?14:7,dt);t.throttle=t.inputY;t.steer=t.inputX;if(autoLock||save.settings.assist){const target=tanks.filter(q=>q.team!==t.team&&!q.dead&&Math.hypot(q.x-t.x,q.z-t.z)<(save.loadout.equipment.includes('optics')?240:180)&&lineClear(t,q)).map(q=>({q,a:Math.atan2(q.x-t.x,q.z-t.z)})).filter(o=>Math.abs(angle(o.a-aimYaw))<(autoLock?.65:.075)).sort((a,b)=>Math.abs(angle(a.a-aimYaw))-Math.abs(angle(b.a-aimYaw)))[0];if(target){aimYaw+=angle(target.a-aimYaw)*dt*(autoLock?(save.loadout.equipment.includes('optics')?4.5:3):.7);if(autoLock)aimPitch=lerp(aimPitch,Math.atan2(terrain(target.q.x,target.q.z)-terrain(t.x,t.z),Math.hypot(target.q.x-t.x,target.q.z-t.z)),dt*3)}}const turnRate=(save.loadout.equipment.includes('stabilizer')?1.82:1.4)*(save.loadout.equipment.includes('gunLaying')?1.2:1)*(t.usedSupplies.includes('rationPack')?1.08:1);t.turretYaw+=clamp(angle(aimYaw-t.turretYaw),-dt*turnRate,dt*turnRate);t.pitch=lerp(t.pitch,aimPitch,dt*6);if(fireHeld)fire(t);if(mgHeld||keys.Space)fireMG(t)}else ai(t,dt);
 t.yaw+=t.steer*dt*(t.track?.18:.85)*(t.speed<-.5?-1:1);const targetSpeed=t.throttle*t.maxSpeed*(t.throttle<0?.55:1)*(t.track?.1:1)*(t.engine?.55:1);t.speed=damp(t.speed,targetSpeed,Math.abs(t.throttle)<.08?5:2,dt);const nx=t.x+Math.sin(t.yaw)*t.speed*dt,nz=t.z+Math.cos(t.yaw)*t.speed*dt;const collision=tanks.some(o=>o!==t&&!o.dead&&Math.abs(nx-o.x)<3.5&&Math.abs(nz-o.z)<3.5&&Math.hypot(nx-o.x,nz-o.z)<3.5);if(!blocked(nx,nz)&&!collision){t.x=nx;t.z=nz}else{t.speed*=.3;if(!t.isPlayer)t.yaw+=dt*.8}t.root.position.set(t.x,terrain(t.x,t.z),t.z);t.body.rotation.y=t.yaw;t.body.rotation.x=(terrain(t.x,t.z+1)-terrain(t.x,t.z-1))*.3;t.turret.rotation.y=angle(t.turretYaw-t.yaw);t.gun.rotation.x=-t.pitch;if(t.isPlayer||Math.hypot(t.x-player.x,t.z-player.z)<48)t.wheels.forEach(w=>w.rotation.x+=t.speed*dt*1.5);
@@ -663,7 +445,7 @@ function end(win){
  $('again').onclick=mode==='net'?()=>{window.STEEL_NET?.close();garage()}:startBattle;$('backGarage').onclick=garage;
 }
 function pause(){if(mode==='net'&&state==='battle'){resetInput();notify('Сетевой бой нельзя поставить на паузу');return}if(state==='battle'){state='paused';resetInput();document.exitPointerLock?.();$('overlay').hidden=false;$('overlay').innerHTML='<div class="dialog"><div class="eyebrow">ОПЕРАЦИЯ ПРИОСТАНОВЛЕНА</div><h2>Пауза</h2><button id="resume" class="primary">Продолжить</button><button id="pauseSettings">Настройки</button><button id="exitBattle">Завершить бой</button></div>';$('resume').onclick=pause;$('pauseSettings').onclick=openSettings;$('exitBattle').onclick=()=>end(false)}else if(state==='paused'){state='battle';$('overlay').hidden=true}}
-function hud(){updateEnemyOverlays();const p=player;$('mgInfo').textContent=`КП-12.7  ${p.mg.belt} / ${p.mg.reserve} · ${p.mg.reloading>0?'ЛЕНТА '+p.mg.reloading.toFixed(1)+'с':p.mg.overheated?'ПЕРЕГРЕВ':Math.round(p.mg.heat)+'°'}`;$('mgHeat').style.width=p.mg.heat+'%';$('mg').classList.toggle('hot',p.mg.overheated);$('repairLabel').textContent='РЕМОНТ ×'+p.repairs;const direction=new T.Vector3(Math.sin(p.turretYaw)*Math.cos(p.pitch),Math.sin(p.pitch),Math.cos(p.turretYaw)*Math.cos(p.pitch));const bore=new T.Vector3(p.x,terrain(p.x,p.z)+2.1,p.z).addScaledVector(direction,60).project(camera);$('bore').style.left=(bore.x*.5+.5)*100+'%';$('bore').style.top=(-bore.y*.5+.5)*100+'%';$('bore').style.opacity=Math.abs(angle(p.turretYaw-aimYaw))<1?'1':'0';$('hp').textContent=`${Math.ceil(p.hp)} / ${Math.round(p.maxHp)}`;$('hpbar').style.width=p.hp/p.maxHp*100+'%';$('modules').textContent=[p.track?'ГУСЕНИЦА ⚠':'',p.engine?'ДВИГАТЕЛЬ ⚠':''].join(' ');$('speed').textContent=Math.round(Math.abs(p.speed)*3.6)+' км/ч';$('reload').textContent=p.cool>0?'ПЕРЕЗАРЯДКА '+p.cool.toFixed(1)+'с':'ОРУДИЕ ГОТОВО';$('ammoInfo').textContent=AMMO_NAMES[p.ammo]+' · '+p.rounds[p.ammo];$('fire').style.background=`conic-gradient(#c9df7a66 ${100*(1-p.cool/p.reload)}%,#19291d99 0)`;const allies=tanks.filter(t=>t.team===p.team&&!t.dead).length,enemies=tanks.filter(t=>t.team!==p.team&&!t.dead).length;$('score').textContent=`${allies} СОЮЗНИКИ  /  ${enemies} ПРОТИВНИКИ${mode==='survival'?' · ВОЛНА '+wave:mode==='flag'?' · 🚩 '+(flagCarrier?(flagCarrier.isPlayer?'ТВОЙ ФЛАГ':'ФЛАГ ВРАГА'):'ФЛАГ СВОБОДЕН')+' · '+Math.ceil(flagTimer)+'с':''}`;const c=$('mini').getContext('2d');c.clearRect(0,0,180,180);c.fillStyle='#52604b';obstacles.forEach(o=>c.fillRect(90+o.x*.6-o.r*.6,90-o.z*.6-o.r*.6,o.r*1.2,o.r*1.2));tanks.forEach(t=>{if(t.dead)return;c.fillStyle=t.isPlayer?'#ffffff':t.team!==p.team?'#ee8768':'#d4f070';c.beginPath();c.arc(90+t.x*.6,90-t.z*.6,t.isPlayer?4:3,0,7);c.fill()});c.strokeStyle='#fff';c.beginPath();c.moveTo(90+p.x*.6,90-p.z*.6);c.lineTo(90+p.x*.6+Math.sin(aimYaw)*15,90-p.z*.6-Math.cos(aimYaw)*15);c.stroke()}
+function hud(){updateEnemyOverlays();const p=player;$('mgInfo').textContent=`КП-12.7  ${p.mg.belt} / ${p.mg.reserve} · ${p.mg.reloading>0?'ЛЕНТА '+p.mg.reloading.toFixed(1)+'с':p.mg.overheated?'ПЕРЕГРЕВ':Math.round(p.mg.heat)+'°'}`;$('mgHeat').style.width=p.mg.heat+'%';$('mg').classList.toggle('hot',p.mg.overheated);$('repairLabel').textContent='РЕМОНТ ×'+p.repairs;const direction=new T.Vector3(Math.sin(p.turretYaw)*Math.cos(p.pitch),Math.sin(p.pitch),Math.cos(p.turretYaw)*Math.cos(p.pitch));const bore=new T.Vector3(p.x,terrain(p.x,p.z)+2.1,p.z).addScaledVector(direction,60).project(camera);$('bore').style.left=(bore.x*.5+.5)*100+'%';$('bore').style.top=(-bore.y*.5+.5)*100+'%';$('bore').style.opacity=Math.abs(angle(p.turretYaw-aimYaw))<1?'1':'0';$('hp').textContent=`${Math.ceil(p.hp)} / ${Math.round(p.maxHp)}`;$('hpbar').style.width=p.hp/p.maxHp*100+'%';$('modules').textContent=[p.track?'ГУСЕНИЦА ⚠':'',p.engine?'ДВИГАТЕЛЬ ⚠':''].join(' ');$('speed').textContent=Math.round(Math.abs(p.speed)*3.6)+' км/ч';$('reload').textContent=p.cool>0?'ПЕРЕЗАРЯДКА '+p.cool.toFixed(1)+'с':'ОРУДИЕ ГОТОВО';$('ammoInfo').textContent=AMMO_NAMES[p.ammo]+' · '+p.rounds[p.ammo];$('fire').style.background=`conic-gradient(#c9df7a66 ${100*(1-p.cool/p.reload)}%,#19291d99 0)`;const allies=tanks.filter(t=>t.team===p.team&&!t.dead).length,enemies=tanks.filter(t=>t.team!==p.team&&!t.dead).length;$('score').textContent=`${allies} СОЮЗНИКИ  /  ${enemies} ПРОТИВНИКИ${mode==='survival'?' · ВОЛНА '+wave:mode==='flag'?' · 🚩 '+(flagCarrier?(flagCarrier.isPlayer?'ТВОЙ ФЛАГ':'ФЛАГ ВРАГА'):'ФЛАГ СВОБОДЕН')+' · '+Math.ceil(flagTimer)+'с':''}`;const c=$('mini').getContext('2d');c.clearRect(0,0,180,180);c.fillStyle='#52604b';obstacles.forEach(o=>{c.save();c.translate(90+o.x*.6,90-o.z*.6);c.rotate(o.angle||0);c.fillRect(-o.w*.3,-o.d*.3,o.w*.6,o.d*.6);c.restore()});tanks.forEach(t=>{if(t.dead)return;c.fillStyle=t.isPlayer?'#ffffff':t.team!==p.team?'#ee8768':'#d4f070';c.beginPath();c.arc(90+t.x*.6,90-t.z*.6,t.isPlayer?4:3,0,7);c.fill()});c.strokeStyle='#fff';c.beginPath();c.moveTo(90+p.x*.6,90-p.z*.6);c.lineTo(90+p.x*.6+Math.sin(aimYaw)*15,90-p.z*.6-Math.cos(aimYaw)*15);c.stroke()}
 function applySettings(){const s=save.settings;document.documentElement.style.setProperty('--size',s.size);document.documentElement.style.setProperty('--opacity',s.opacity);renderer.shadowMap.enabled=false;pixelCap=Math.min(devicePixelRatio,mobile?1:1.25);adaptive=1;renderer.setPixelRatio(pixelCap);layoutControls();persist()}
 function openSettings(){if(state==='battle')pause();$('settings').hidden=false;const s=save.settings;$('settingsFields').innerHTML=`${[['sensitivity','Чувствительность обзора',.3,2.5,.1],['aimSensitivity','Чувствительность прицела',.2,1.5,.05],['deadzone','Мёртвая зона джойстика',.02,.25,.01],['smoothing','Скорость камеры',4,20,1],['size','Размер управления',.7,1.5,.05],['opacity','Прозрачность',.25,1,.05]].map(([k,n,a,b,step])=>`<label>${n}<input data-setting="${k}" type="range" min="${a}" max="${b}" step="${step}" value="${s[k]}"></label>`).join('')}${[['garland','Бесплатная новогодняя гирлянда'],['assist','Помощь в прицеливании'],['invert','Инверсия вертикальной оси'],['invertJoystick','Инверсия поворота джойстика (лево / право)'],['invertJoystickY','Инверсия джойстика вперёд / назад'],['sound','Звуки и музыка']].map(([k,n])=>`<label>${n}<input data-setting="${k}" type="checkbox" ${s[k]?'checked':''}></label>`).join('')}<label>Графика<select data-setting="quality"><option value="low">Низкая</option><option value="medium">Средняя</option><option value="high">Высокая</option></select></label>`;document.querySelector('[data-setting="quality"]').value=s.quality;document.querySelectorAll('[data-setting]').forEach(el=>el.oninput=()=>{s[el.dataset.setting]=el.type==='checkbox'?el.checked:el.type==='range'?+el.value:el.value;applySettings()})}
 $('settingsOpen').onclick=openSettings;$('settingsClose').onclick=()=>{$('settings').hidden=true;if(state==='garage')garage()};$('layout').onclick=()=>{editing=true;$('settings').hidden=true;$('overlay').hidden=true;$('garage').hidden=true;$('hud').hidden=false;$('layoutDone').hidden=false;document.body.classList.remove('desktop')};$('layoutDone').onclick=e=>{if(e.target.tagName!=='BUTTON')return;editing=false;persist();$('layoutDone').hidden=true;document.body.classList.toggle('desktop',!mobile);if(state==='garage'){$('garage').hidden=false;$('hud').hidden=true}else if(state==='paused'){$('overlay').hidden=false}openSettings()};$('resetLayout').onclick=()=>{save.settings.layout={};document.querySelectorAll('.control').forEach(e=>{e.style.left=e.style.right=e.style.top=e.style.bottom=''});applySettings()};$('start').onclick=startBattle;$('pause').onclick=pause;$('repair').onclick=repair;$('aim').onclick=setZoom;$('ammo').onclick=changeAmmo;$('lock').onclick=()=>{if(editing)return;autoLock=!autoLock;$('lock').style.color=autoLock?'#e5fa72':'';notify(autoLock?'ЗАХВАТ ВКЛЮЧЁН':'ЗАХВАТ ОТКЛЮЧЁН')};$('mini').onclick=()=>{$('mini').style.width=$('mini').style.width?'':'240px';$('mini').style.height=$('mini').style.height?'':'240px'};

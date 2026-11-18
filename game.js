@@ -124,7 +124,7 @@ function environmentDetail(idx,garageMode=false){
   };
   habitat(-113,-92,1.1);habitat(115,93,1);habitat(-115,96,.85);habitat(115,-95,.85);
   // Elevated central command platform: recognizable silhouette, far enough from spawn points.
-  const cx=0,cz=0;
+  const cx=62,cz=112;
   cylinder(cx,1.4,cz,13,2.8,dark);
   cylinder(cx,3.1,cz,12,.65,steel);
   for(let i=0;i<12;i++){
@@ -438,7 +438,94 @@ function buildTacticalArena(idx,groundColor,stone){
  const oldSeed=seed;seed=3001+idx*97;
  if([0,2,7].includes(idx))scatterModeledTrees(save.settings.quality==='low'?18:36,idx===2?1:2,avoid,rand,terrain);
  for(let i=0;i<24;i++){const a=i*Math.PI/12,x=Math.sin(a)*175,z=Math.cos(a)*175;const rock=new T.Mesh(rockGeometry(i%3,true),stoneMaterial(stone));rock.scale.set(12,10+(i%4)*5,13);rock.position.set(x,5,z);world.add(rock)}
- seed=oldSeed;applyComicArt(idx,false);
+ seed=oldSeed;
+ if(idx===6){environmentDetail(idx,false);buildLunarInteriors()}
+ applyComicArt(idx,false);
+}
+// Walkable lunar tunnels and rooms: roofs are raised, both ends open and side walls are collidable.
+function buildLunarInteriors(){
+ const low=save.settings.quality==='low';
+ const hull=0x718394,trim=0xc3d0d7,inside=0x293947,light=0xf3c17a,glass=0x3d8eb3;
+ const block=(x,y,z,w,h,d,c=hull)=>mesh('box',c,x,y,z,w,h,d);
+ // Collision is approximated by small circles, matching the existing tank collision engine.
+ const barrier=(x,z,r=1.8)=>obstacles.push({x,z,r,h:4,w:r*2,d:r*2,angle:0,kind:0});
+ const wallZ=(x,z,length,thick=1.1,height=5)=>{
+  block(x,terrain(x,z)+height/2,z,thick,height,length);
+  for(let dz=-length/2+1;dz<=length/2-1;dz+=3.2)barrier(x,z+dz,thick*.7);
+ };
+ const wallX=(x,z,length,thick=1.1,height=5)=>{
+  block(x,terrain(x,z)+height/2,z,length,height,thick);
+  for(let dx=-length/2+1;dx<=length/2-1;dx+=3.2)barrier(x+dx,z,thick*.7);
+ };
+ const corridor=(x,z,length)=>{
+  // The passage runs north-south, wide enough for tanks and open at both ends.
+  const width=15;
+  block(x,terrain(x,z)-.06,z,width,.22,length,inside);
+  wallZ(x-width/2,z,length);
+  wallZ(x+width/2,z,length);
+  block(x,terrain(x,z)+6.3,z,width+2,1.1,length,trim);
+  for(let dz=-length/2+4;dz<length/2;dz+=9){
+   const yy=terrain(x,z+dz);
+   for(const side of [-1,1]){
+    block(x+side*(width/2-.35),yy+4.4,z+dz,.35,.5,1.5,light);
+    block(x+side*(width/2+.55),yy+.3,z+dz,.8,.6,1.2,inside);
+   }
+   block(x,yy+5.72,z+dz,4,.14,1.4,glass);
+  }
+  // Highly visible entrance frames and yellow hazard stripes.
+  for(const end of [-1,1]){
+   const ez=z+end*length/2,ey=terrain(x,ez);
+   for(const side of [-1,1]){
+    block(x+side*(width/2+.5),ey+3.3,ez,1.6,6.6,1.5,trim);
+    block(x+side*(width/2+.5),ey+.4,ez+end*1.1,1.8,.3,1.3,light);
+   }
+   block(x,ey+6.7,ez,width+3,1.2,1.7,trim);
+   block(x,ey+6.7,ez+end*.95,5,.4,.3,light);
+  }
+ };
+ const room=(x,z)=>{
+  // Square maintenance hall with a wide entrance on each of its north/south walls.
+  const w=30,d=28,door=15;
+  block(x,terrain(x,z)-.08,z,w,.25,d,inside);
+  for(const side of [-1,1]){
+   wallZ(x+side*w/2,z,d,1.2,7);
+   for(const half of [-1,1]){
+    const segment=(w-door)/2;
+    const xx=x+half*(door/2+segment/2);
+    wallX(xx,z+side*d/2,segment,1.2,7);
+   }
+   block(x,terrain(x,z)+7.5,z+side*d/2,door+2,1.1,1.5,trim);
+  }
+  // Roof beams rather than a solid roof: tanks remain visible from the game camera.
+  for(let dz=-9;dz<=9;dz+=9){
+   block(x,terrain(x,z)+8.2,z+dz,w+2,.75,1.25,trim);
+   block(x,terrain(x,z)+8.8,z+dz,5,.3,1.3,light);
+  }
+  for(const side of [-1,1]){
+   const px=x+side*11;
+   for(let j=-1;j<=1;j++){
+    const zz=z+j*7;
+    block(px,terrain(px,zz)+1,zz,2.6,2,3.3,j===0?glass:hull);
+    block(px,terrain(px,zz)+2.15,zz,2.8,.25,3.5,trim);
+   }
+   block(x+side*12,terrain(x,z)+5.4,z,2.5,1.5,9,glass);
+  }
+  block(x,terrain(x,z)+.2,z,4,.12,7,0xc9a34d);
+  for(const dz of [-9,9])block(x,terrain(x,z)+.2,z+dz,8,.12,.45,light);
+ };
+ // Two symmetrical, connected routes; leave the central arena and spawns unobstructed.
+ for(const x of [-76,76]){
+  corridor(x,-46,36);
+  room(x,0);
+  corridor(x,46,36);
+  // Side equipment outside the traversable passage.
+  for(const z of [-44,44]){
+   const px=x+(x<0?-13:13);
+   block(px,terrain(px,z)+2.3,z,4,4.6,7,inside);
+   block(px,terrain(px,z)+4.8,z,4.5,.5,7,trim);
+   block(px,terrain(px,z)+2.7,z+(z<0?-3.55:3.55),3.2,2.6,.15,glass);
+  }
+ }
 }
 const occludedMaterial=new T.LineBasicMaterial({color:0xff775e,transparent:true,opacity:.65,depthTest:true,depthWrite:false,depthFunc:T.GreaterDepth});
 function addEnemyOverlay(t){

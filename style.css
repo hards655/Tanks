@@ -42,3 +42,7 @@ h1 span{color:#ffbd45;text-shadow:4px 5px 0 #100b1a}
 #p2pLobby .p2pMatch{border:1px solid #627f55;border-radius:8px;padding:12px;margin:12px 0;background:#16261b}#p2pLobby .p2pMatch .primary{width:100%;font-weight:800;font-size:14px}#p2pLobby #p2pCancel{margin-top:9px;width:100%}#p2pLobby .p2pMatch small{margin-top:9px}#p2pLobby button:disabled{opacity:.45;cursor:default}
 
 #p2pHud{position:fixed;right:12px;top:78px;z-index:26;pointer-events:none;border:1px solid #6c9d84;background:#101e19d9;color:#bdf4c4;padding:6px 9px;border-radius:7px;font:600 11px system-ui, sans-serif;max-width:45vw;text-align:right}#p2pHud.netWarning{border-color:#ec9b52;color:#ffd4a3;background:#291a12e8}@media(max-width:700px){#p2pHud{right:7px;top:59px;font-size:10px;max-width:40vw;padding:5px}}
+
+.tankMarker{position:absolute;transform:translate(-50%,-100%);font:700 11px system-ui;text-shadow:0 1px 3px #000,0 0 4px #000;pointer-events:none;white-space:nowrap;z-index:2;padding:3px 6px;background:#10182077;border-radius:4px}.tankMarker[hidden]{display:none}
+
+.winterGift{width:100%;margin-top:8px;min-height:34px;color:#ffe4a0;border-color:#a78b51;background:#22352e}.topHud .score{font-variant-numeric:tabular-nums;pointer-events:none}

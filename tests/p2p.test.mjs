@@ -7,7 +7,7 @@ import {runInNewContext} from 'node:vm';
 // registry and linked DataChannels. No real external server or internet needed.
 const script=readFileSync(new URL('../p2p.js',import.meta.url),'utf8');
 
-function simulator(){
+function simulator({silentSignaling=false}={}){
   let now=0, nextId=0;
   const connections=new Map(), events=[], timers=[], links=[];
   class Emitter {
@@ -17,7 +17,7 @@ function simulator(){
   }
   class Peer extends Emitter {
     constructor(id){
-      super();this.id=id||'guest'+(++nextId);
+      super();this.id=id||'guest'+(++nextId);if(silentSignaling)return;
       events.push(()=>{
         if(connections.has(this.id))this.emit('error',{type:'unavailable-id'});
         else{connections.set(this.id,this);this.emit('open',this.id)}
@@ -169,4 +169,19 @@ test('incoming snapshots are buffered until the receiving scene is ready',()=>{
  guest.el('p2pCode').value=host.el('p2pKey').textContent;guest.el('p2pJoin').click();sim.flush();host.el('p2pLaunch').click();sim.flush();
  host.bridge.x=42;host.win.STEEL_NET.stateNow();sim.flush();assert.equal(guest.bridge.received.length,0);
  sim.advance(80);assert.ok(guest.bridge.received.some(s=>s.x===42));
+});
+
+test('autosearch reports unavailable signaling instead of waiting forever',()=>{
+ const sim=simulator({silentSignaling:true}),a=sim.browser(0);a.el('p2pOpen').click();a.el('p2pAuto').click();sim.advance(13000);
+ assert.match(a.el('p2pStatus').textContent,/12 секунд/);assert.equal(a.el('p2pAuto').disabled,false);
+});
+test('a lone player rechecks the queue and still finds a later arriving player',()=>{
+ const sim=simulator(),a=sim.browser(0);a.el('p2pOpen').click();a.el('p2pAuto').click();sim.flush();sim.advance(28000);
+ assert.equal(a.win.STEEL_NET.active,false);
+ const b=sim.browser(1);b.el('p2pOpen').click();b.el('p2pAuto').click();sim.flush();sim.advance(7200);
+ assert(a.win.STEEL_NET.active);assert(b.win.STEEL_NET.active);
+});
+test('autosearch cancellation leaves no match after timers expire',()=>{
+ const sim=simulator(),a=sim.browser(0);a.el('p2pOpen').click();a.el('p2pAuto').click();sim.flush();a.el('p2pCancel').click();sim.advance(40000);
+ assert(!a.win.STEEL_NET.active);assert.equal(a.el('p2pAuto').disabled,false);
 });

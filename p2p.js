@@ -17,7 +17,9 @@
   // Public deterministic PeerJS IDs serve as queue slots; no peer listing is needed.
   let auto = false, autoSlot = 0, generation = 0, autoTimer = null;
   let autoProbeTimer = null, autoRetryTimer = null, autoRetrying = false;
-  const AUTO_SLOTS = 24;
+  const AUTO_SLOTS = 12;
+  let searchStarted=0;
+  function networkFailure(message){close();status(message+' Проверь интернет и повтори поиск.');}
   const autoPeerId = n => 'steel-tanks-auto-v2-slot-' + n;
   function clearAutoTimers() {
     clearTimeout(autoTimer); clearTimeout(autoProbeTimer); clearTimeout(autoRetryTimer);
@@ -161,10 +163,12 @@
   }
   function connected(c) {
     const stamp = generation;
+    const helloTimeout=setTimeout(()=>{if(stamp===generation&&host&&!roster.some(p=>p.id===c.peer))c.close()},10000);
     if (host && peers.size >= 3) { c.close(); return; }
     if (host) peers.set(c.peer, c); else hostConn = c;
     c.on('data', d => { if (stamp === generation) packet(d,c); });
     c.on('close', () => {
+      clearTimeout(helloTimeout);
       if (stamp !== generation) return;
       if (host) {
         peers.delete(c.peer);
@@ -205,7 +209,7 @@
     loading = true;
     status('Загружаем WebRTC-модуль…');
     const s = document.createElement('script');
-    s.src = 'https://cdn.jsdelivr.net/npm/peerjs@1.5.5/dist/peerjs.min.js';
+    s.src = './vendor/peerjs.min.js';
     s.onload = () => { loading=false; const job=pendingPeerLoad;pendingPeerLoad=null;if(job?.stamp===generation)job.done(); };
     s.onerror = () => { loading=false; status('Не удалось загрузить PeerJS. Нужен интернет.'); };
     document.head.appendChild(s);
@@ -282,24 +286,27 @@
     const owner = new window.Peer(id, {debug:0});
     peer = owner;
     status('Автопоиск · проверяем комнату ' + (slot+1) + '…');
+    autoProbeTimer=setTimeout(()=>{if(auto&&stamp===generation&&!myId)networkFailure('Сервер поиска не ответил за 12 секунд.')},12000);
     owner.on('connection', c => { if (auto && peer === owner && stamp === generation) connected(c); else c.close(); });
     owner.on('open', connectedId => {
       if (!auto || stamp !== generation || peer !== owner) return;
-      host=true; myId=connectedId;
+      clearTimeout(autoProbeTimer);host=true; myId=connectedId;
       roster=[{id:myId,name:nickname,type:bridge()?.tankType() || 0}];
       publishRoster();
-      status('Ищем соперников… Вы создали открытую комнату для автопоиска.');
+      status('Комната доступна. Ждём другого игрока — открой игру на втором устройстве и нажми «Автопоиск».');
+      autoTimer=setTimeout(()=>{if(auto&&!running&&roster.length===1)autoScan(0)},22000+Math.random()*3000);
     });
     owner.on('error', error => {
       if (!auto || running || stamp !== generation) return;
       if (error.type === 'unavailable-id') {
         try { owner.destroy(); } catch (e) {}
-        host=false;
+        host=false;clearTimeout(autoProbeTimer);
         const guest=new window.Peer(undefined,{debug:0});
         peer=guest;
+        autoProbeTimer=setTimeout(()=>{if(auto&&stamp===generation)autoAdvance('Не отвечает сервер подключения. Повторяем поиск…')},12000);
         guest.on('open', guestId => {
           if (!auto || stamp !== generation || peer !== guest) return;
-          myId=guestId; room='АВТО';
+          clearTimeout(autoProbeTimer);myId=guestId; room='АВТО';
           const c=guest.connect(id,{reliable:true,serialization:'json'});
           connected(c);
           status('Нашли комнату! Проверяем свободные места…');
@@ -315,14 +322,14 @@
           else autoAdvance('Не удалось войти в комнату. Ищем дальше…');
         });
         guest.on('disconnected',()=>{if(auto && !running && stamp===generation) autoAdvance('Потеряна связь. Ищем снова…');});
-      } else autoAdvance('Ошибка сервера поиска. Пробуем следующий слот…');
+      } else networkFailure('Ошибка сервера поиска: '+String(error.type||'network')+'.');
     });
     owner.on('disconnected',()=>{if(auto&&!running&&stamp===generation)autoAdvance('Сервер поиска недоступен. Повторяем попытку…');});
   }
   function automatic() {
     if (!bridge()?.isGarage()) return;
     close();
-    auto=true; nickname=safeName($('p2pNick').value);
+    auto=true;searchStarted=performance.now(); nickname=safeName($('p2pNick').value);
     $('p2pKey').textContent='АВТОПОИСК';
     autoStatus();
     status('Ищем игроков… Комнаты подбираются автоматически.');

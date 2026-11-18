@@ -1,0 +1,40 @@
+{
+  "version": 1,
+  "units": "meters",
+  "upAxis": "Y",
+  "format": "glTF 2.0, embedded binary buffers",
+  "provenance": "Original procedural geometry created for Steel Thunder; no external meshes or textures included.",
+  "assets": [
+    {
+      "id": "snow_rock_cluster",
+      "file": "models/snow_rock_cluster.gltf",
+      "category": "terrain",
+      "triangles": 2880
+    },
+    {
+      "id": "snow_pine",
+      "file": "models/snow_pine.gltf",
+      "category": "vegetation",
+      "triangles": 7224
+    },
+    {
+      "id": "corrugated_hangar",
+      "file": "models/corrugated_hangar.gltf",
+      "category": "buildings",
+      "triangles": 14120
+    },
+    {
+      "id": "rail_track_15m",
+      "file": "models/rail_track_15m.gltf",
+      "category": "railway",
+      "triangles": 1996
+    }
+  ],
+  "materials": "Vertex colors and glTF metallic/roughness factors; no baked texture maps yet.",
+  "optionalShader": "shaders/winter-surface.mjs",
+  "limitations": [
+    "Not artist-reviewed or visually tested in game",
+    "No baked 4K textures, LODs, or collision meshes",
+    "Not yet integrated into the game scene"
+  ]
+}

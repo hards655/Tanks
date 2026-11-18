@@ -28,5 +28,6 @@ export const LEVELS=[
  roads:[road(19,[0,-140],[-8,-60],[25,-15],[-22,35],[0,95],[0,140]),road(15,[-100,-140],[-88,-60],[-100,30],[-90,140]),road(17,[95,-140],[92,-60],[90,40],[95,140]),road(16,[-140,0],[-75,0],[-20,12],[25,-8],[75,0],[140,0])],
  props:[...row('warehouse',[[-43,-52,25,24,11],[43,62,25,25,11],[-121,75,22,33,12],[121,-76,22,34,12]]),...row('container',[[40,-36,25,8,3],[44,-53,20,8,6],[-39,33,23,8,3],[-43,50,20,8,6],[-43,-108,23,8,3],[38,108,23,8,3]]),...row('crane',[[125,56,21,23,18],[-123,-58,21,23,18]]),...row('wall',[[40,-14,19,3,2.4],[-40,15,19,3,2.4]])],hills:[],zones:[[-43,-50,'СКЛАДЫ'],[122,56,'СУДОРЕМОНТ'],[95,-100,'ПРИЧАЛ']]}
 ];
-export function authoredHeight(index,x,z){if(index<0)return 0;const l=LEVELS[index];let h=.12*Math.sin(x*.055)*Math.cos(z*.065);for(const [cx,cz,a,r]of l.hills)h+=a*Math.exp(-((x-cx)**2+(z-cz)**2)/(r*r));return h}
+export function creekX(z){return 65+12*Math.sin(z*.033)+6*Math.sin(z*.067)}
+export function authoredHeight(index,x,z){if(index<0)return 0;const l=LEVELS[index];let h=.12*Math.sin(x*.055)*Math.cos(z*.065);for(const [cx,cz,a,r]of l.hills)h+=a*Math.exp(-((x-cx)**2+(z-cz)**2)/(r*r));if(index===0){const bank=(x-creekX(z))/5;h-=.85*Math.exp(-bank*bank)}return h}
 export function footprint(x,z,o,r=0){const c=Math.cos(o.angle),s=Math.sin(o.angle),dx=x-o.x,dz=z-o.z;return Math.abs(dx*c-dz*s)<o.w/2+r&&Math.abs(dx*s+dz*c)<o.d/2+r}

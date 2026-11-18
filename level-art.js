@@ -1,3 +1,4 @@
+import {snowSurface} from './landscape.js';
 import * as T from './vendor/three.js';
 import {LEVELS,authoredHeight,footprint} from './authored-levels.js';
 import {branchingTree} from './foliage.js';
@@ -27,6 +28,10 @@ export function buildAuthoredLevel(world,index,quality='medium'){
  }else if(o.kit==='hangar'||o.kit==='habitat'){
   add(arch,S,0,0,0,w,h,d,0,parent);for(let z=-d/2;z<=d/2;z+=3)add(arch,M,0,0,z,w*1.015,h*1.012,.18,0,parent);b(0,h*.3,d/2+.13,w*.7,h*.6,.22,M);for(let y=1;y<h*.6;y+=.6)b(0,y,d/2+.26,w*.65,.08,.08,A);b(w*.32,h*.5,d/2+.3,1,h*.3,.1,glass);if(o.kit==='habitat'){add(dome,M,0,h*.8,0,w*.45,h*.4,d*.5,0,parent)}
  }else {
+  if(['house','mill','factory','warehouse'].includes(o.kit)){
+   b(-w*.29,h*.86,-d*.18,.95,h*.47,1.1,M);b(-w*.29,h*1.09,-d*.18,1.2,.24,1.35,A);
+   for(const side of [-1,1]){b(side*w*.5,h*.36,-d*.4,.15,h*.74,.15,M);for(let z=-d*.46;z<d*.49;z+=1.7)b(side*w*.49,h*.73,z,.72,.23,.22,M)}
+  }
   const bodyH=['house','mill','warehouse','factory'].includes(o.kit)?h*.73:h;
   b(0,bodyH/2,0,w,bodyH,d);
   if(['house','mill','warehouse','factory'].includes(o.kit))add(roof,A,0,bodyH,0,w*1.04,h*.27,d*1.04,0,parent);
@@ -53,6 +58,6 @@ export function buildAuthoredLevel(world,index,quality='medium'){
  if(l.tree>=0){const count=quality==='low'?20:40;let placed=0;for(let i=0;i<200&&placed<count;i++){const x=Math.sin(i*47.3+index)*132,z=Math.cos(i*19.7+index)*132;if(l.roads.some(r=>r.points.slice(1).some(([bx,bz],j)=>{const [ax,az]=r.points[j],dx=bx-ax,dz=bz-az,f=Math.max(0,Math.min(1,((x-ax)*dx+(z-az)*dz)/(dx*dx+dz*dz)));return Math.hypot(x-ax-dx*f,z-az-dz*f)<r.width/2+6}))||l.props.some(o=>footprint(x,z,o,8)))continue;const size=8+i%4;add(branchingTree(l.tree,i%3),treeMaterial,x,authoredHeight(index,x,z),z,size,size,size,i);placed++}}
  // Shallow decorative water/lava stays beyond collision bounds, never an invisible driving trap.
  if(index===5||index===7){const m=new T.Mesh(new T.PlaneGeometry(480,480),new T.MeshStandardMaterial({color:index===5?0xa84220:0x365f69,roughness:.24,metalness:.25,emissive:index===5?0x8c2108:0,emissiveIntensity:.8}));m.rotation.x=-Math.PI/2;m.position.y=-1.5;m.userData.ownedGeometry=true;m.userData.ownedMaterial=true;world.add(m)}
- for(const {g,mat,transforms}of batches.values()){const m=new T.InstancedMesh(g,mat,transforms.length);transforms.forEach((matrix,i)=>m.setMatrixAt(i,matrix));m.computeBoundingSphere();m.receiveShadow=true;world.add(m)}
+ for(const {g,mat,transforms}of batches.values()){const m=new T.InstancedMesh(g,index===2?snowSurface(mat):mat,transforms.length);if(index===2)m.userData.ownedMaterial=true;transforms.forEach((matrix,i)=>m.setMatrixAt(i,matrix));m.computeBoundingSphere();m.receiveShadow=true;world.add(m)}
  return {instances:[...batches.values()].reduce((n,b)=>n+b.transforms.length,0),batches:batches.size};
 }

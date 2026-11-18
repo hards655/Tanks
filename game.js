@@ -396,7 +396,29 @@ function biomeRubble(idx,low,rand,terrain){
  }
 }
 
-function steelBatchStatic(){const groups=new Map();for(const m of world.children.slice()){if(!m.isMesh||m.isInstancedMesh||m.userData.ownedGeometry||m.userData.ownedMaterial||!m.material||m.material.transparent||!Object.values(geo).includes(m.geometry))continue;const key=m.geometry.uuid+':'+m.material.uuid;if(!groups.has(key))groups.set(key,[]);groups.get(key).push(m)}for(const list of groups.values()){if(list.length<3)continue;const batch=new T.InstancedMesh(list[0].geometry,list[0].material,list.length);batch.castShadow=false;batch.receiveShadow=true;for(let i=0;i<list.length;i++){const m=list[i];m.updateMatrix();batch.setMatrixAt(i,m.matrix);world.remove(m)}batch.instanceMatrix.needsUpdate=true;batch.computeBoundingSphere();world.add(batch)}}function buildMap(idx,garage=false){const quality=save.settings.quality;try{if(mode==='net')save.settings.quality='medium';steelBuildMap(idx,garage);steelBatchStatic()}finally{save.settings.quality=quality}}
+function steelBatchStatic(){
+ // Batch shared static primitives even inside habitat/solar-array groups.
+ world.updateMatrixWorld(true);
+ const groups=new Map();
+ world.traverse(m=>{
+  if(!m.isMesh||m.isInstancedMesh||m.userData.ownedGeometry||m.userData.ownedMaterial||!m.material||m.material.transparent||!Object.values(geo).includes(m.geometry))return;
+  const key=m.geometry.uuid+':'+m.material.uuid;
+  if(!groups.has(key))groups.set(key,[]);
+  groups.get(key).push(m);
+ });
+ for(const list of groups.values()){
+  if(list.length<3)continue;
+  const batch=new T.InstancedMesh(list[0].geometry,list[0].material,list.length);
+  batch.castShadow=false;batch.receiveShadow=true;
+  for(let i=0;i<list.length;i++){
+   const m=list[i];batch.setMatrixAt(i,m.matrixWorld);
+   m.parent.remove(m);
+  }
+  batch.instanceMatrix.needsUpdate=true;
+  batch.computeBoundingSphere();world.add(batch);
+ }
+}
+function buildMap(idx,garage=false){const quality=save.settings.quality;try{if(mode==='net')save.settings.quality='medium';steelBuildMap(idx,garage);steelBatchStatic()}finally{save.settings.quality=quality}}
 function steelBuildMap(idx,garage=false){
  clearWorld();seed=9281+idx*701;scene.fog.density=.0025;
  const palettes=[

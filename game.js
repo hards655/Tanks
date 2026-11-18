@@ -85,14 +85,100 @@ function environmentDetail(idx,garageMode=false){
   for(let z=-16;z<=16;z+=8){beam(-15,1,z,2,2,2,0x7c654a);beam(15,1,z,2,2,2,0x7c654a)}
   return;
  }
- if(idx===6){ // Lunar regolith, craters, habitats, solar panels, antennae.
-  scene.fog.density=.002;
-  for(let i=0;i<28/step;i++){const x=(rand()-.5)*250,z=(rand()-.5)*250;if(Math.abs(x)<16||Math.abs(z)<16)continue;
-   const r=3+rand()*8;const ring=mesh('cyl',0x697582,x,.02,z,r,.25,r);ring.scale.y=.6;
-   mesh('sphere',0x293644,x,.03,z,r*.72,.12,r*.72)}
-  for(let i=0;i<9/step;i++){let x=(rand()-.5)*210,z=(rand()-.5)*210;const dome=mesh('sphere',0xc6d6e0,x,2.2,z,4.5,2.6,4.5);mesh('cyl',0x748ea0,x,.5,z,4.8,1,4.8);
-   for(let j=-1;j<=1;j++){beam(x+7+j*2,.7,z,1.7,.12,5,0x2b638f);beam(x-7+j*2,.7,z,1.7,.12,5,0x2b638f)}
-   beam(x,5,z,.15,4,.15,0xcdd6d9);mesh('sphere',0xffe1a3,x,7,z,.45,.45,.45)}
+ if(idx===6){ // LUNA-9: fortified lunar research complex, distant craters and industrial infrastructure.
+  scene.fog.density=.00115;
+  const steel=0x788da2,bright=0xd8e3e9,dark=0x293847,blue=0x1d5a86,orange=0xe9a75b;
+  const box=(x,y,z,w,h,d,c=steel)=>beam(x,y,z,w,h,d,c);
+  const cylinder=(x,y,z,r,h,c=steel)=>mesh('cyl',c,x,y,z,r,h,r);
+  // Moon surface: crater rims made of separated rocks; keep the three combat lanes open.
+  for(let i=0;i<34/step;i++){
+   const x=(rand()-.5)*335,z=(rand()-.5)*335;
+   if(Math.abs(x)<35||Math.abs(z)<35||Math.hypot(x,z)<65)continue;
+   const radius=4+rand()*10;
+   mesh('sphere',0x52606c,x,.03,z,radius*.86,.12,radius*.86);
+   for(let j=0;j<9;j++){const angle=j*Math.PI*2/9,rr=radius*(.87+rand()*.24);
+    const stone=mesh('sphere',j%2?0x8a929b:0x667482,x+Math.cos(angle)*rr,.1,z+Math.sin(angle)*rr,1.5+rand()*1.5,.7+rand()*.4,1.5+rand()*1.4);
+    stone.rotation.y=angle;
+   }
+  }
+  // Habitats have segmented pressure shells, airlocks, panoramic windows and service struts.
+  const habitat=(x,z,scale=1)=>{
+   const g=new T.Group();g.position.set(x,terrain(x,z),z);g.scale.setScalar(scale);world.add(g);
+   const part=(shape,c,px,py,pz,sx,sy,sz)=>mesh(shape,c,px,py,pz,sx,sy,sz,g);
+   part('cyl',dark,0,.7,0,7,1.4,7);
+   part('sphere',bright,0,4,0,7,4.5,7);
+   part('cyl',steel,0,1.4,0,7.25,.6,7.25);
+   part('cyl',dark,0,7.35,0,2.3,.5,2.3);
+   for(let j=0;j<12;j++){
+    const q=j*Math.PI/6,xx=Math.cos(q)*6.65,zz=Math.sin(q)*6.65;
+    const rib=part('box',steel,xx,3.5,zz,.45,4.5,.6);rib.rotation.y=-q;
+    if(j%2===0){const win=part('box',blue,xx*.89,4.1,zz*.89,1.55,1.25,.24);win.rotation.y=-q;}
+   }
+   part('box',dark,0,1.9,7,3.7,3.8,2.2);
+   part('box',orange,0,2.1,8.17,2.5,2.5,.2);
+   part('box',blue,0,2.1,8.3,1.6,1.6,.12);
+   for(const side of [-1,1]){
+    part('box',dark,side*5.7,.8,5,1.1,1.6,1.1);
+    part('box',orange,side*5.7,1.7,5,1.4,.15,1.4);
+   }
+  };
+  habitat(-113,-92,1.1);habitat(115,93,1);habitat(-115,96,.85);habitat(115,-95,.85);
+  // Elevated central command platform: recognizable silhouette, far enough from spawn points.
+  const cx=0,cz=0;
+  cylinder(cx,1.4,cz,13,2.8,dark);
+  cylinder(cx,3.1,cz,12,.65,steel);
+  for(let i=0;i<12;i++){
+   const q=i*Math.PI/6;
+   const p=mesh('box',orange,Math.cos(q)*11.8,3.55,Math.sin(q)*11.8,1.9,.22,.48);p.rotation.y=-q;
+  }
+  cylinder(cx,6.3,cz,7.5,5.6,steel);
+  cylinder(cx,9.25,cz,8.2,.7,dark);
+  for(let i=0;i<16;i++){const q=i*Math.PI/8;
+   const p=mesh('box',i%4===0?orange:blue,Math.cos(q)*7.42,6.8,Math.sin(q)*7.42,2.35,2.3,.2);p.rotation.y=-q;
+  }
+  cylinder(cx,11.5,cz,2.2,4.5,steel);
+  mesh('sphere',0xc4e9f7,cx,14.4,cz,2.1,1.1,2.1);
+  // Satellite arrays: many individually framed photovoltaic cells, structural booms and a tracking dish.
+  const array=(x,z,rotation=0)=>{
+   const g=new T.Group();g.position.set(x,terrain(x,z),z);g.rotation.y=rotation;world.add(g);
+   const part=(shape,c,px,py,pz,sx,sy,sz)=>mesh(shape,c,px,py,pz,sx,sy,sz,g);
+   for(const side of [-1,1]){
+    part('box',steel,side*11,1.7,0,18,.28,.55);
+    for(let col=0;col<8;col++)for(let row=0;row<3;row++){
+     const px=side*(3+col*2.25),pz=(row-1)*2.1;
+     part('box',dark,px,2.05,pz,2.08,.12,1.95);
+     part('box',blue,px,2.13,pz,1.84,.04,1.7);
+     part('box',0x9dc7e3,px,2.17,pz,.045,.025,1.7);
+    }
+   }
+   part('cyl',dark,0,.8,0,1.2,1.6,1.2);
+   part('cyl',steel,0,2.6,0,.32,2.5,.32);
+   part('sphere',bright,0,4.2,0,1.2,.42,1.2);
+   part('sphere',blue,0,4.65,0,.4,.4,.4);
+  };
+  array(-104,35,.4);array(104,-35,-.4);array(-40,112,.15);array(40,-112,-.15);
+  // Cargo yard, antenna mast and pressurized connecting tubes.
+  for(const side of [-1,1]){
+   const x=side*83,z=side*116;
+   for(let j=0;j<5;j++){
+    box(x+(j%3)*4,1.3,z+Math.floor(j/3)*5,3.6,2.5,4.3,j%2?0x8b9ca6:0xb47e51);
+    box(x+(j%3)*4,2.65,z+Math.floor(j/3)*5,3.7,.15,4.4,dark);
+   }
+   box(side*105,2.4,0,4.5,4.8,24,steel);
+   for(let j=-2;j<=2;j++)box(side*105,2.5,j*4.2,4.8,.25,.35,dark);
+   box(side*105,2.3,12,3.2,2.8,.12,blue);
+  }
+  box(-135,10,0,.7,20,.7,steel);
+  for(let y=3;y<20;y+=3){box(-135,y,0,3.6,.2,.25,dark);box(-135,y,0,.25,.2,3.6,dark)}
+  mesh('sphere',orange,-135,21,0,.8,.8,.8);
+  for(let i=0;i<4;i++){const q=i*Math.PI/2;const p=mesh('box',bright,-135+Math.cos(q)*2.5,18,Math.sin(q)*2.5,4,.3,.5);p.rotation.y=-q}
+  // Distant lander and launchpad, decorative geometry beyond the playable center.
+  cylinder(145,.45,-145,15,.9,dark);
+  for(let j=0;j<4;j++){const q=j*Math.PI/2;const x=145+Math.cos(q)*7,z=-145+Math.sin(q)*7;
+   box(x,2,z,.55,4,.55,steel);mesh('sphere',orange,x,4.3,z,.5,.5,.5)}
+  cylinder(145,6,-145,3.4,9,bright);
+  mesh('cone',bright,145,12.2,-145,3.5,4.6,3.5);
+  for(let j=0;j<4;j++){const q=j*Math.PI/2;box(145+Math.cos(q)*4,3.3,-145+Math.sin(q)*4,1.2,5.8,1.2,steel)}
  }else if(idx===5){ // Lava channels, vents, volcanic caldera.
   scene.fog.density=.004;
   for(let i=0;i<30/step;i++){let x=(rand()-.5)*245,z=(rand()-.5)*245;if(Math.abs(x)<17||Math.abs(z)<17)continue;

@@ -1,0 +1,37 @@
+{
+  "version": 2,
+  "resolution": [
+    2048,
+    2048
+  ],
+  "grid": [
+    4,
+    4
+  ],
+  "tileResolution": 512,
+  "uvOrigin": "top-left (glTF)",
+  "maps": {
+    "baseColor": "atlas-basecolor.png",
+    "normal": "atlas-normal.png",
+    "orm": "atlas-orm.png (R=AO, G=roughness, B=metallic)"
+  },
+  "tiles": [
+    "weathered steel",
+    "oxidized steel",
+    "concrete",
+    "old brick",
+    "wood",
+    "glass",
+    "snow",
+    "rock",
+    "bark",
+    "pine foliage (alpha mask)",
+    "ballast",
+    "green painted steel",
+    "blue painted steel",
+    "asphalt",
+    "ice",
+    "rubber"
+  ],
+  "provenance": "Original procedural texture art, no external files. Shared indexed PNG atlases; not photogrammetry or 4K maps."
+}
